@@ -1,13 +1,15 @@
-# Validation · 3.2.0
+# Validation · 3.3.0
 
-273 automated tests pass on Python 3.12. Source and bundled startup checks validate the real Discord command tree: `/roll` and `/avatar` only. Runtime dependency compatibility and the four-file Railway package are checked during release.
+**335 automated tests pass on Python 3.12**, including 62 new tests for percentage strength, stacking, individual stats, and active-rig management. Source and bundle startup checks validate the real two-command tree: `/roll` and `/avatar`.
 
-Private panel tests cover lower/upper case `!rigger`, owner DM access, server and non-owner rejection, button/select/modal authorization, independent engine guards, draft versus active settings, verified target selection, targeted non-owner Avatar rolls across servers, default owner targeting, command scopes, duplicate Apply, persistence, reopening, stale forms, timeout, private status refresh, and real Discord component/modal serialization within limits.
+New coverage checks good/bad strength from 1–100%, numeric rounding, optional percent-sign input, invalid percentages, signed dice and bonuses, highest/lowest selection, sparse weighted numeric faces, legal results, monotonic strength, and no extra random draws for luck.
 
-Avatar boundary tests cover every nation, family, tribe, village, and combat range, plus IQ and six individual stats. Bending values 59, 60, and 61 are checked for all four nations. A value of 60 is non-bender. Only a final Nomad with bending above 60 rolls the element d3; force and luck changes drive the subsequent branch, and no inapplicable die is drawn. No Air element is available.
+Combined Avatar coverage stacks IQ, nation, bending, Nomad element, and all six stat forces in one character. It mixes stat force/shift/luck, checks specific luck overriding broader luck and exact force winning last, preserves other players and command scopes, clears impossible/skipped rigs individually, retains lasting luck, and checks Nomad bending transitions at 60/61 after percentage changes.
 
-Existing regressions cover custom numeric and weighted/text faces, exact totals, signed arithmetic, bonuses, keep-high/low, unreachable results, bounded searches, scoped controls, skipped parts, creator-only mutation, request collisions, complete-character receipts, preserved version-3 settings, bounded caches, and atomic rollback after a failed write.
+Storage tests cover old single-setting migration, default strength for old luck, persistent stacks, stable rule IDs, duplicate Apply/removal/complete-character receipts, creator namespaces, individual/player/all clearing, corrupt individual entries, atomic rollback of all consumption after write failure, and the bounded receipt cache.
 
-Discord transport tests retain minimal intents and the normal Gateway dispatcher, synchronize the two public commands, clear obsolete server commands, defer before bounded/database work, keep private controls out of public results, escape mentions, obey message-size limits, and reject slash commands in DMs without consuming controls.
+Private UI tests cover owner-only DM entry, verified non-owner targeting across servers, engine and button/select/modal guards, percentage forms, drafts versus live state, active counts, pagination, filtering, editing/removal, consumed-rule refresh, stale/expired forms, reopening, and real Discord payloads. A full 100-rig list fits select, row, option, and embed limits.
 
-The tests use deterministic dice and mocked Discord transport. They do not send game messages to players or prove a live server installation. Live Railway startup is verified separately after deployment. Opening and operating the panel on Discord requires the correct bot installation, creator user ID, and permission to DM the bot.
+Existing regressions retain every Avatar range and conditional branch, strict bending above 60, custom dice parsing, text faces, exact totals, impossible requests, solver limits, public message sizing and mention escaping, minimal Gateway intents, command synchronization, and obsolete-command cleanup.
+
+Tests use deterministic dice and mocked Discord transport. They do not send game messages to players. Railway build/startup and the actual Discord connection are verified separately after deployment. The private panel requires the installed bot, correct creator user ID, and permission to DM it.

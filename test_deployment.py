@@ -19,7 +19,7 @@ def test_release_contains_only_minimal_runtime_and_runs_offline(tmp_path):
     with zipfile.ZipFile(artifact) as archive:
         names = archive.namelist()
         assert set(names) == {'__main__.py'} | {f'ua_bot/{name}.py' for name in
-                         ['__init__', '__main__', 'errors', 'dice', 'solver', 'controls', 'storage', 'engine', 'display', 'client', 'avatar', 'rigger_ui']}
+                         ['__init__', '__main__', 'errors', 'dice', 'solver', 'controls', 'storage', 'engine', 'display', 'client', 'avatar', 'rigger_ui', 'luck']}
         assert archive.testzip() is None
     result = subprocess.run([sys.executable, str(artifact), '--check'], cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr

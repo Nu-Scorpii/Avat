@@ -1,4 +1,4 @@
-# Simple Discord Dice Bot · 3.2.0
+# Simple Discord Dice Bot · 3.3.0
 
 Two public commands: `/roll` for custom dice and `/avatar` for Avatar character creation. Creator controls work privately in DMs. No character tracking, battles, attendance, or saved-die menus.
 
@@ -71,13 +71,21 @@ The message shows the six stat values and each applicable category with its actu
 
 ## Creator
 
-Open the bot's DMs and send **`!rigger`**. A private panel opens with roll, mode, and outcome menus plus **Choose player**, **Enter value**, **Apply**, and **Turn off** buttons. No arguments are needed. `!Rigger` works too. The live bot opens the panel even if you append old arguments; those arguments do not arm a setting.
+Open the bot's DMs and send **`!rigger`**. Choose a player, roll, and change, enter a value or pick a preset, then press **Apply**. `!Rigger` works too. No command arguments or server IDs are needed. Appended old arguments open the panel without arming anything.
 
 Only the account configured as `BOT_OWNER_ID` can open the panel, use its buttons, or submit its forms. It never appears in slash menus. Server messages are ignored. Choose the exact Avatar part when modifying `/avatar`; choosing `/roll` affects custom rolls only. Presets include nations, tribes, family tiers, bender/non-bender, elements, and combat styles. Whole-character Avatar controls support good/bad luck.
 
-The draft defaults to targeting **you**. Use **Choose player** to paste another player's user ID or mention; the bot checks that it is a real player account. The target follows that player across every server and never depends on a server ID or cached server membership. Other players cannot configure Rigger, but the selected player's rolls can receive your setting. Nothing is armed until **Apply**. There is one active setting; applying replaces it. Force, shift, and text-face settings are used once; luck lasts until turned off.
+The first draft targets **you**; reopening resumes the most recently added rig as a draft. **Choose player** accepts another player's user ID or mention and verifies their account. Targets follow players across every server. Other players cannot operate the controls but can receive rigs you set for them. Only **Apply** changes live settings.
 
-The panel updates its private active status after rolls. Panels close after ten minutes of inactivity or when you reopen them; the saved setting stays active. After a restart, DM `!rigger` for a fresh panel. Older version-3 settings remain active until used, replaced, or turned off; an unrestricted old rule is identified as legacy in the panel. New panel settings always have an explicit player and command scope. See `CREATOR_ONLY.md` for the short guide.
+**Good/bad luck has 1–100% strength.** Use **Luck %** to enter `37` or `37%`, or pick 1/25/50/75/100 from the menu. Each numeric die moves that fraction toward its best/worst legal face, rounded to the nearest legal value; ties round toward the extreme. **50% means halfway; 100% gives the best/worst face.** Strength is not a chance of activation. Tiny strengths can round to no change. Signed dice respect the final total; bonuses stay unchanged; text dice skip luck.
+
+**Several rigs can affect one Avatar character.** Apply adds or updates only the same player + roll + kind of change. For example, force Nation to Water Tribes, force Bending to 100, and set each **Stat 1–6** independently to 1–20. Force, shift, and luck can coexist on one part. Good and bad share one luck slot. Specific luck overrides whole-character luck; a stat's luck overrides all-six-stats luck. Each part applies luck, then shift, then exact force. Force wins. Force/shift/text-face rigs are used once; luck remains until removed.
+
+**Stat 1–6** means the first through sixth values displayed in the existing 6d20 roll. It does not roll extra dice. **All six stats** and **Whole character** support luck; choose individual stats for exact values or point shifts.
+
+Press **Active rigs** to see every active rig with its player, roll, value/percentage, and duration. Use **Only chosen player**, page buttons, **Edit selected**, **Remove selected**, **Clear player**, or **Clear all**. The draft also shows active counts and a quick preview for the chosen player. Private status refreshes after rolls. Up to 100 independent rigs can be saved.
+
+Panels close after ten minutes of inactivity or when reopened; saved rigs stay active. After a restart, DM `!rigger` for a fresh panel. Old version-3 settings migrate with their target and last status intact; old luck without a percentage becomes **100% strength**. Legacy unrestricted or six-stat-total rules remain visible and usable once; remove them to create explicit command/part controls. See `CREATOR_ONLY.md` for the guide.
 
 ## Railway
 
@@ -102,7 +110,7 @@ For a new service, attach a persistent volume at **`/data`**. Set these variable
 
 Railway supplies `RAILWAY_VOLUME_MOUNT_PATH`; do not set it manually. The database must be inside that mount. A local default is `data/ua.sqlite3`. No server ID is needed; a previous `DISCORD_GUILD_ID` is ignored. The bot replaces the global command list and clears old server-specific commands when it connects. Discord clients may need a refresh before their cached menus update.
 
-The bot preserves old campaign tables on the volume without loading them. Current settings and the last 1,000 command receipts use separate tables. Changes and one-use consumption commit together. Redeploys preserve the new setting. A repeated recent interaction returns the same roll or complete Avatar character and does not consume a new setting. All rolls and control changes for one Avatar character commit together.
+The bot preserves old campaign tables on the volume without loading them. Current rigs and the last 1,000 command receipts use separate tables. All dice, rig consumption, and a receipt for one Avatar character commit together. Redeploys preserve saved rigs. A repeated recent interaction returns the same result without consuming or rearming newer rigs.
 
 Install the Discord application **to your server** with `bot` and `applications.commands` scopes; adding it only to your account does not put the bot in the server. Permit View Channel and Send Messages in the roll channel and let players use application commands. Leave the Interactions Endpoint URL empty. No privileged Gateway intents or Administrator permission are needed. Creator controls and notices require that your account can DM the bot. A startup log showing **0 server(s)** means the connected bot was not in any servers when it connected: check its bot ID against the bot in your server and use the correct server install.
 
@@ -127,7 +135,7 @@ For local play, copy `.env.example` to `.env`, fill in your token and creator ID
 - Volume error: attach the volume to this service and place the database under its real mount, then redeploy. Retain the original database file when updating.
 - Private panel not opening: DM `!rigger` from the exact account identified by `BOT_OWNER_ID`; allow DMs from the bot. This variable must contain your user ID, not the application ID. There is no public `/rigger` command.
 - Old or expired buttons: DM `!rigger` again. Reopening does not arm, clear, or rearm a saved setting.
-- A setting did not apply: check the panel's **Active setting**, target user ID, and selected roll. Press **Apply** after editing. `/roll` settings never affect `/avatar`; use the Avatar part menu.
+- A rig did not apply: open **Active rigs**, check its player ID, roll, and value/strength, and press **Apply** after draft edits. Specific luck overrides broader luck; exact force wins over luck or a shift. Small percentages may round to no change. `/roll` rigs do not affect `/avatar`.
 - A forced result was impossible or its Avatar part was skipped: the regular roll remains valid and the one-use setting clears. The panel's **Last affected roll** and your private notice explain why.
 
 Official API reference: https://discordpy.readthedocs.io/en/stable/interactions/api.html

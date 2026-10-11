@@ -1,60 +1,81 @@
-# Private Rigger panel · 3.2.0
+# Private Rigger panel · 3.3.0
 
-**DM the bot `!rigger`.** This opens the panel. No extra words, numbers, server IDs, or slash commands are needed. `!Rigger` also works. Only the account configured as `BOT_OWNER_ID` can open or operate it. DMs keep it out of player channels; privileged Message Content intent is not required.
+**DM the bot `!rigger`.** Only the account configured as `BOT_OWNER_ID` can open and use it. `!Rigger` also works. No extra words or server IDs are needed.
 
-## Use it in four steps
+## Add a rig
 
-1. **Choose the roll:** custom `/roll`, one `/avatar` part, or whole-character Avatar luck.
-2. **Choose the change:** Force a result, Add/subtract points, Good luck, Bad luck, or Text face.
-3. **Choose the player:** it starts with you. To affect someone else, press **Choose player** and paste their user ID or mention. The bot verifies that it is a player account. **Target me** returns to you.
-4. **Pick an outcome or Enter value**, then press **Apply**.
+1. **Choose player** and paste their user ID or mention, or use **Target me**.
+2. Choose **/roll**, an **Avatar part**, **Stat 1–6**, **All six stats**, or **Whole character**.
+3. Choose Force, Add/subtract, Good luck, Bad luck, or Text face where available.
+4. Pick a preset or enter the value, then **Apply**.
 
-**Editing is a draft. Apply arms it.** The panel shows the draft and the separate **Active setting** so you can tell what will affect the next roll. **Turn off** clears the live setting immediately; **Refresh** checks its current status; **Help** explains the buttons.
+Draft edits do not affect rolls until Apply. Targets work across all servers, including players who do not own the bot. To copy an ID: Discord Settings → Advanced → Developer Mode, then right-click the player → Copy User ID. The first draft targets you; reopening resumes the most recently added rig as a draft.
 
-There is **one active setting**. Each Apply replaces it. Targets follow a player in every server the bot joins. Another player's rolls do not consume that player's setting. Only you operate the panel; your selected target does not need to own the bot.
+## Luck: 1–100% strength
 
-To copy a player ID, enable **Discord Settings → Advanced → Developer Mode**, then right-click their profile → **Copy User ID**. Use their user ID, not a server ID, channel ID, or application ID.
+Choose Good luck or Bad luck, then use **Luck %** to type `37` or `37%`. The menu also offers 1/25/50/75/100%. A newly chosen luck mode starts as a **50% draft**.
 
-## Choose the change
+The percentage controls **how strong the change is**, not its chance of happening. Each numeric die moves that fraction of the distance toward its best/worst legal face. Results round to the nearest legal face, with halfway ties toward the extreme. Very low strength can round to no change.
 
-| Change | What to enter | How long it lasts |
+| Natural d20 | Good luck 50% | Bad luck 50% |
 |---|---|---|
-| Force a result | Exact final total, or a preset outcome | One matching roll |
-| Add/subtract points | Whole number, such as `+3` or `-2` | One matching roll |
-| Good luck | Nothing | Until Turn off or replaced |
-| Bad luck | Nothing | Until Turn off or replaced |
-| Text face | Exact custom die label, preserving capitals and spaces | One matching custom `/roll` |
+| 8 | 14 | 4 |
+| 10 | 15 | 5 |
+| Any | At 100%: 20 | At 100%: 1 |
 
-Force includes arithmetic and bonuses: a forced total of 15 on `1d20` with `bonus:3` shows a die of 12 and total 15. Multi-die force changes legal die faces to reach the total; it does not give every die that number. Good/bad rolls the entire selected pool twice and keeps the higher/lower total, including subtraction and highest/lowest selection. Luck refers to the numeric value, not a judgment about which nation is best.
+Signed dice respect the final total. Bonuses and fixed modifiers stay unchanged. Custom dice use real numeric faces; gaps can make different percentages produce the same result. Highest/lowest selection remains valid. Text dice skip luck. Luck refers to numbers, not whether an origin or combat style is desirable.
 
-If a force or shift cannot be produced by the real die faces, the result stays normal and the one-use setting clears. Only you receive the explanation. Text dice have no numeric total; use **Text face** for one custom die instead. Luck skips text dice and remains on.
+Luck lasts until removed. Use **Active rigs → Remove selected** to turn it off; 0% is not a setting.
+
+## Multiple rigs on one Avatar
+
+Apply adds a rig or updates only the **same player + roll + kind**. Other rigs stay active. Good and bad share one luck slot.
+
+Example: for one player, force Nation to Water Tribes, force Bending check to Bender, and set Stat 1 to 18, Stat 2 to 14, and the other stats individually. All those rigs affect the same next `/avatar`.
+
+**Stat 1–6** changes the first through sixth displayed d20s. Each supports force (1–20), shift, or luck. It changes the existing 6d20 results without drawing extra dice. **All six stats** and **Whole character** support luck only.
+
+When settings overlap:
+
+- A stat's own luck overrides all-six-stats luck, which overrides whole-character luck. Other specific parts override whole-character luck.
+- Each part applies **luck → shift → exact force**. Force wins.
+- Force, shift, and text-face rigs are used once; luck remains. Reapplying a slot updates its value without adding duplicates.
+
+Up to **100 rigs total** can be saved across all players. `/roll` rigs stay separate from Avatar rigs.
+
+## Check, edit, and remove
+
+Press **Active rigs** to see every rig's number, player ID, roll, value/percentage, and duration. **Only chosen player** filters to the ID displayed above the list. Use Previous/Next for longer lists.
+
+- Select an entry, then **Edit selected** to load its draft. Apply saves it. Changing its player, roll, or kind creates another slot and leaves the original active.
+- **Remove selected** clears only that entry.
+- **Clear player** clears rigs for the **Chosen player ID shown above the list**.
+- **Clear all** removes every rig.
+- **Refresh** checks live state. **Back to draft** retains your unsaved edits.
+
+The main panel shows counts and a short player preview. Status updates privately after rolls, including consumed rigs and the last affected roll. A draft can still show a value after its one-use rig is consumed; Active rigs is the live list.
 
 ## Avatar choices
 
-**Choose the Avatar part in the first menu.** Custom `/roll` settings do not affect `/avatar`, and Avatar settings do not affect `/roll`. Force or shift applies to exactly the part you choose, instead of silently changing IQ. **Whole character** supports good/bad luck on every applicable part.
-
-| Avatar part | Exact forced range | Preset choices |
+| Part | Forced range | Presets |
 |---|---|---|
-| IQ | 1–20 | Enter value |
-| Six stats | Total 6–120 | Enter value; 120 gives six 20s |
-| Nation | 1–100 | Fire Nation, Water Tribes, Earth Kingdom, Nomad |
+| IQ / Stat 1–6 | 1–20 | Enter value |
+| Nation | 1–100 | Fire, Water, Earth, Nomad |
 | Water tribe | 1–3 | Southern, Northern, Swamp |
 | Fire family | 1–100 | Civilian, Military, High ranking, Royal |
-| Earth village | 1–20 | Under Fire Nation control, Not under control |
+| Earth village | 1–20 | Under Fire Nation control / not under control |
 | Bending check | 1–100 | Bender (61), Non-bender (60) |
 | Nomad element | 1–3 | Fire, Water, Earth |
 | Non-bender combat | 1–100 | Sword, Bow, Fan, Fists, Pressure point |
 
-Presets force a valid representative die value. You can use **Enter value** instead when you want an exact number. The resulting number determines subsequent branches. For example, choosing Water Tribes produces the tribe d3; choosing a bending result of 60 produces non-bender combat.
+Final rigged values determine later rolls. **Only a final Nomad with bending above 60 rolls the element d3.** Other benders receive their nation's element. At 60 or below, the character rolls non-bender combat. There is no Air bending. Water's tribe d3 is a separate origin roll.
 
-The **element d3 runs only when the final nation is Nomad and the final bending check is above 60**. A non-Nomad bender receives their nation's element automatically. A Nomad at 60 or below receives combat style instead. No extra bending check or Air bending is added. Water characters still roll their separate origin tribe d3 regardless of bending.
+A skipped conditional part draws no extra dice. Its one-use rig clears privately after that player's Avatar; its luck rig stays active. Impossible force/shift requests clear only that rig, leave that change unapplied, and explain privately. Other successful changes remain effective. Custom `/roll` force includes modifiers and bonuses in its exact total.
 
-If a one-use conditional part is absent from the selected player's character, that setting clears after the character and explains the skipped part privately. It cannot invent an extra tribe, family, village, element, or combat roll. A lasting luck setting stays enabled when its part is skipped.
+## Restarts and privacy
 
-## Status and restarts
+Saved rigs survive Railway redeploys. Dice, rig consumption, and the complete character receipt commit together. Duplicate recent requests do not reroll, consume newer rigs, or rearm used ones. Public results show only final dice and outcomes.
 
-The panel refreshes after rolls and shows the **Last affected roll** privately. Force/shift/text-face settings clear after one use. Saved settings survive Railway redeploys, and repeated deliveries do not rearm or consume them twice.
+Panels close after ten minutes of inactivity, when reopened, or after a restart. This keeps saved rigs active. DM `!rigger` for a fresh panel. Old buttons and forms cannot change settings.
 
-Panels close after ten minutes of inactivity, when reopened, or when the bot restarts. **A closed panel does not turn off a saved setting.** DM `!rigger` to open a fresh panel. Old buttons and old forms cannot change settings after the panel closes. Settings from older version-3 releases are preserved; the panel labels unrestricted old rules as legacy. New settings always have an explicit player and command scope.
-
-Public results contain only the dice and outcome. The panel is absent from slash menus. Keep this guide private; source-code readers can still inspect how the bot works.
+Old settings migrate with their target and last status intact. Old luck without a percentage becomes **100% strength**; adjust it if needed. Legacy unrestricted or six-stat-total rigs remain visible and removable. Create new explicit /roll or Avatar rigs instead of editing legacy entries. Legacy total rigs run before new individual stat overrides. Keep this guide private; source-code readers can inspect the feature.

@@ -1,3 +1,13 @@
+# Version 3.3.0
+
+- Added 1–100% good/bad luck strength and input accepting `50` or `50%`. Numeric faces move that fraction toward their legal best/worst face; signed dice and keep-high/low remain valid; text dice skip luck.
+- Replaced the single setting with up to 100 independent rig slots. Apply updates only the same player, command/part, and kind; multiple rigs can affect one complete Avatar.
+- Added Stat 1–6 targets to independently force, shift, or apply luck to each ordered 6d20 outcome, without drawing extra dice. All-six-stats and whole-character choices support luck.
+- Defined precedence: specific luck overrides broader luck; luck runs before point shifts and exact force. Force wins. Good and bad share one luck slot.
+- Added Active rigs with counts, player IDs, values, percentages, durations, pages, player filtering, editing, individual removal, player clearing, and clearing all rigs. Status refreshes privately after rolls.
+- Preserved owner-only DM authorization, cross-server targets, strict Nomad bending branching, old settings/receipts, and atomic complete-character consumption. Failed/skipped rigs clear individually. Old luck becomes 100% strength until edited.
+- Verified 335 tests, including 62 new percentage, stacking, per-stat, migration, rollback, management, and Discord payload tests.
+
 # Version 3.2.0
 
 - Replaced the live Rigger argument interface with a creator-only DM panel opened by `!rigger` or `!Rigger`.

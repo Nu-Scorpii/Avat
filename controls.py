@@ -1,37 +1,16 @@
-"""One active creator setting. Commands are accepted only in the creator's DMs."""
+"""Validated private controls and the internal legacy-command adapter."""
 
 import re
 import shlex
 from .avatar import PART_DICE, PART_LIMITS
 from .errors import RollError, require
 
-HELP = '''!Rigger 15 — force the next final total to 15
-!Rigger +3 / !Rigger -2 — shift the next total
-!Rigger good / !Rigger bad — lasting luck
-!Rigger off — clear the setting
-!Rigger status — show the setting and last affected roll
-
-Optional: add @User or their user ID to target that person in every server.
-Example: !Rigger 15 123456789012345678
-Without a target, the setting applies to anyone in any server.
-
-Each new setting replaces the old one. Force and shift are used once.
-Good/bad rolls twice and keeps the better/worse whole roll until switched off.
-Force means the FINAL total, including modifiers and bonus points.
-Impossible results roll normally, clear the one-use setting, and notify only you.
-Text dice: !Rigger face "storm" forces one text face on one custom die.
-Negative forced total: !Rigger force -4.
-
-Avatar only: !Rigger nation 30 or !Rigger bending 100
-Use a part before the same number, shift, good, or bad:
-iq, stats, nation, tribe, family, control, bending, element, combat.
-Example: !Rigger iq +3 123456789012345678
-Stats controls the six-die TOTAL, not each stat. A skipped one-use part clears
-after the targeted /avatar and privately explains why. Ordinary /roll ignores
-Avatar part settings. Bare settings affect /avatar too, starting with IQ.
-!Rigger help brings back this guide.'''
+HELP = ('DM !rigger to use the private panel. Choose a player and roll, then Apply. '
+        'Use Luck % for 1–100% strength, Stat 1–6 for individual dice, and Active rigs '
+        'to check or remove saved controls. Live DMs do not execute command arguments.')
 
 MAX_VALUE = 200_000_000_000
+MAX_RIGS = 100
 TARGET = re.compile(r'(?:<@!?(\d+)>|(\d+))\Z')
 NUMBER = re.compile(r'[+-]?\d+\Z')
 COMMAND = re.compile(r'!rigger(?:\s|$)', re.IGNORECASE)
@@ -59,6 +38,8 @@ def panel_setting(mode, value=None, target=None, *, scope='roll', part=None):
     require(scope != 'roll' or part is None, 'Avatar parts only work on /avatar.')
     require(scope != 'avatar' or part is not None or mode in ('good', 'bad'),
             'Whole-character controls support luck. Choose a specific Avatar part to force or shift it.')
+    require(part != 'stats' or mode in ('good', 'bad'),
+            'Choose Stat 1–6 to force or shift an individual die. Six stats supports luck.')
     target = None if target is None else player_id(target)
     if mode in ('force', 'shift'):
         require(isinstance(value, (str, int)) and not isinstance(value, bool)
@@ -74,7 +55,13 @@ def panel_setting(mode, value=None, target=None, *, scope='roll', part=None):
         require(isinstance(value, str) and 1 <= len(value) <= 40 and not any(ord(c) < 32 for c in value),
                 'Enter the exact text face, using 1–40 characters.')
     else:
-        value = None
+        value = 100 if value is None else value
+        text = str(value).strip().removesuffix('%').strip()
+        require(isinstance(value, (str, int)) and not isinstance(value, bool)
+                and len(str(value)) <= 8 and NUMBER.fullmatch(text),
+                'Enter a whole luck strength from 1 to 100.')
+        value = int(text)
+        require(1 <= value <= 100, 'Luck strength must be 1–100%. Use Remove selected to turn it off.')
     return {'mode': mode, 'value': value, 'target': target, 'part': part, 'scope': scope, 'last': None}
 
 
@@ -139,8 +126,22 @@ def describe(setting):
     if mode == 'off':
         return 'Rigger is off. Rolls are normal.'
     label = {'force': f'Next final total: {value}', 'shift': f'Next total shift: {value:+d}' if mode == 'shift' else '',
-             'face': f'Next text face: {value}', 'good': 'Good luck until switched off', 'bad': 'Bad luck until switched off'}[mode]
+             'face': f'Next text face: {value}', 'good': f'Good luck: {value or 100}% until removed',
+             'bad': f'Bad luck: {value or 100}% until removed'}[mode]
     scope = (f"\nRoll: /avatar {setting['part']} only." if setting.get('part') else
              '\nRoll: all /avatar parts.' if setting.get('scope') == 'avatar' else
              '\nRoll: /roll only.' if setting.get('scope') == 'roll' else '\nRoll: /roll and /avatar (legacy setting).')
     return label + scope + '\nTarget: ' + (f"user {setting['target']} in every server." if setting['target'] else 'anyone in any server.')
+
+
+def empty_controls():
+    return {'rules': [], 'next_id': 1, 'last': None}
+
+
+def category(rule):
+    return 'luck' if rule['mode'] in ('good', 'bad') else rule['mode']
+
+
+def rule_key(rule):
+    """Applying a draft replaces only the same player's slot and kind."""
+    return rule['target'], rule['scope'], rule['part'], category(rule)

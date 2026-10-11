@@ -164,13 +164,13 @@ def test_shift_is_exact_and_impossible_shift_stays_normal(make_engine):
     assert engine.store.setting(1)['mode'] == 'off'
 
 
-@pytest.mark.parametrize('mode,expected', [('good', 18), ('bad', 4)])
-def test_part_luck_only_redraws_that_part_and_persists(mode, expected, make_engine):
-    engine = make_engine([4, 18, 1, 2, 3, 4, 5, 6, 1, 1, 61, 7])
+@pytest.mark.parametrize('mode,expected', [('good', 20), ('bad', 1)])
+def test_full_part_luck_changes_only_that_part_and_persists(mode, expected, make_engine):
+    engine = make_engine([4, 1, 2, 3, 4, 5, 6, 1, 1, 61, 7])
     dm(engine, f'!Rigger iq {mode}')
     assert engine.avatar(2, 100)['character']['iq'] == expected
     assert engine.roll(2, 200)['dice']['total'] == 7
-    assert engine.rng.calls == 12
+    assert engine.rng.calls == 11
     assert engine.store.setting(1)['mode'] == mode
     assert engine.store.setting(1)['part'] == 'iq'
 

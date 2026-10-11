@@ -8,6 +8,10 @@ PART_DICE = {'iq': '1d20', 'stats': '6d20', 'nation': '1d100', 'tribe': '1d3',
 PART_LIMITS = {'iq': (1, 20), 'stats': (6, 120), 'nation': (1, 100), 'tribe': (1, 3),
                'family': (1, 100), 'control': (1, 20), 'bending': (1, 100),
                'element': (1, 3), 'combat': (1, 100)}
+# Slots address the existing ordered 6d20 pool; they do not add six more rolls.
+STAT_PARTS = tuple(f'stat{index}' for index in range(1, 7))
+PART_DICE.update({part: '1d20' for part in STAT_PARTS})
+PART_LIMITS.update({part: (1, 20) for part in STAT_PARTS})
 NATIONS = ('Fire Nation', 'Water Tribes', 'Earth Kingdom', 'Nomad')
 TRIBES = ('Southern tribe', 'Northern tribe', 'Swamp tribe')
 ELEMENTS = ('Fire', 'Water', 'Earth')

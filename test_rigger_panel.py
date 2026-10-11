@@ -204,14 +204,14 @@ def test_modified_bending_uses_final_threshold_to_choose_d3_or_combat(forced, na
     assert ('combat' in character['rolls']) is (not bender)
 
 
-def test_whole_character_luck_redraws_only_needed_parts_and_persists(make_engine):
-    engine = make_engine([1, 20] + [1] * 6 + [20] * 6 + [1, 76, 60, 61, 1, 3])
+def test_full_whole_character_luck_changes_only_needed_parts_and_persists(make_engine):
+    engine = make_engine([1] + [1] * 6 + [1, 60, 1])
     engine.configure(1, is_dm=True, mode='good', target=42, scope='avatar')
     character = engine.avatar(42, 100)['character']
     assert character['iq'] == 20 and character['stats'] == [20] * 6
     assert character['nation'] == 'Nomad' and character['bending'] == 'Earth bending'
     assert set(character['rolls']) == {'iq', 'stats', 'nation', 'bending', 'element'}
-    assert engine.rng.calls == 20 and engine.store.setting(1)['mode'] == 'good'
+    assert engine.rng.calls == 10 and engine.store.setting(1)['mode'] == 'good'
 
 
 @pytest.mark.parametrize('setting', [

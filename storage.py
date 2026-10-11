@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import json
 from pathlib import Path
 import sqlite3
-from .controls import empty_setting, MAX_VALUE, PART_DICE, PART_LIMITS
+from .controls import empty_controls, empty_setting, MAX_VALUE, MAX_RIGS, PART_DICE, PART_LIMITS, rule_key
 from .errors import require
 
 CACHE_LIMIT = 1000
@@ -35,33 +35,69 @@ class Store:
             self.db.execute('ROLLBACK')
             raise
 
-    def setting(self, owner):
+    @staticmethod
+    def _rule(state, identity):
+        mode, value, target = state['mode'], state['value'], state['target']
+        part = state.get('part')
+        scope = state.get('scope', 'avatar' if part else 'all')
+        assert mode in ('good', 'bad', 'force', 'shift', 'face')
+        assert scope in ('roll', 'avatar', 'all')
+        assert part is None or isinstance(part, str) and part in PART_DICE and mode != 'face'
+        assert scope != 'roll' or part is None
+        assert scope != 'avatar' or part is not None or mode in ('good', 'bad')
+        assert target is None or isinstance(target, str) and target.isdecimal() and 0 < int(target) < 2**64
+        if mode in ('force', 'shift'):
+            assert type(value) is int and abs(value) <= MAX_VALUE
+            if part is not None and mode == 'force':
+                assert PART_LIMITS[part][0] <= value <= PART_LIMITS[part][1]
+        elif mode == 'face':
+            assert isinstance(value, str) and 1 <= len(value) <= 40 and not any(ord(c) < 32 for c in value)
+        else:
+            value = 100 if value is None else value
+            assert type(value) is int and 1 <= value <= 100
+        assert type(identity) is int and identity > 0
+        return dict(id=identity, mode=mode, value=value, target=target, part=part, scope=scope)
+
+    def controls(self, owner):
+        """Read stacked controls, upgrading a v3 single setting without losing it."""
         row = self.db.execute('SELECT state FROM dice_settings_v3 WHERE owner=?', (str(owner),)).fetchone()
         if not row:
-            return empty_setting()
+            return empty_controls()
         try:
             state = json.loads(row['state'])
-            mode, value, target = state['mode'], state['value'], state['target']
-            part = state.get('part')
-            scope = state.get('scope', 'avatar' if part else 'all')
-            assert mode in ('off', 'good', 'bad', 'force', 'shift', 'face')
-            assert scope in ('roll', 'avatar', 'all')
-            assert part is None or isinstance(part, str) and part in PART_DICE and mode not in ('off', 'face')
-            assert scope != 'roll' or part is None
-            assert scope != 'avatar' or part is not None or mode in ('off', 'good', 'bad')
-            assert target is None or isinstance(target, str) and target.isdecimal() and 0 < int(target) < 2**64
-            if mode in ('force', 'shift'):
-                assert type(value) is int and abs(value) <= MAX_VALUE
-                if part is not None and mode == 'force':
-                    assert PART_LIMITS[part][0] <= value <= PART_LIMITS[part][1]
-            elif mode == 'face':
-                assert isinstance(value, str) and 1 <= len(value) <= 40
-            else:
-                assert value is None
-            assert state.get('last') is None or isinstance(state['last'], str) and len(state['last']) <= 1000
-            return {**empty_setting(), **{key: state[key] for key in empty_setting() if key in state}, 'scope': scope}
+            assert isinstance(state, dict)
+            last = state.get('last')
+            assert last is None or isinstance(last, str) and len(last) <= 1000
+            if 'rules' not in state:
+                rules = [] if state['mode'] == 'off' else [self._rule(state, 1)]
+                return {'rules': rules, 'next_id': 2, 'last': last}
+            assert isinstance(state['rules'], list) and len(state['rules']) <= MAX_RIGS
+            rules, identities, keys = [], set(), set()
+            for item in state['rules']:
+                try:
+                    rule = self._rule(item, item['id'])
+                    assert rule['id'] not in identities and rule_key(rule) not in keys
+                except (ValueError, TypeError, KeyError, AssertionError):
+                    # One broken entry must not erase unrelated valid controls.
+                    continue
+                identities.add(rule['id'])
+                keys.add(rule_key(rule))
+                rules.append(rule)
+            next_id = state.get('next_id', 1)
+            assert type(next_id) is int and next_id > 0
+            return {'rules': rules, 'next_id': max(next_id, max(identities, default=0) + 1), 'last': last}
         except (ValueError, TypeError, KeyError, AssertionError):
-            return empty_setting()
+            return empty_controls()
+
+    def save_controls(self, owner, controls):
+        self.db.execute('INSERT INTO dice_settings_v3 VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET state=excluded.state',
+                        (str(owner), json.dumps(controls, ensure_ascii=False)))
+
+    def setting(self, owner):
+        """Compatibility snapshot for the internal pre-panel command adapter."""
+        controls = self.controls(owner)
+        last = controls['rules'][-1] if controls['rules'] else empty_setting()
+        return {key: last.get(key) if key != 'last' else controls['last'] for key in empty_setting()}
 
     def save_setting(self, owner, setting):
         self.db.execute('INSERT INTO dice_settings_v3 VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET state=excluded.state',

@@ -74,14 +74,14 @@ def test_shift_applies_exactly_once(shift, expected, make_engine):
     assert engine.roll(2, 200)['dice']['total'] == 8
 
 
-@pytest.mark.parametrize('mode,expected', [('good', 15), ('bad', 4)])
-def test_luck_chooses_whole_roll_total_not_individual_faces(mode, expected, make_engine):
-    engine = make_engine([2, 9, 6, 2, 1, 7, 7, 1])
+@pytest.mark.parametrize('mode,expected', [('good', 30), ('bad', -8)])
+def test_full_luck_respects_signed_total_and_kept_dice(mode, expected, make_engine):
+    engine = make_engine([2, 9, 1, 7])
     dm(engine, '!Rigger ' + mode)
     assert engine.roll(2, 100, '1d20-1d20+10', bonus=1)['dice']['total'] == expected
     engine.roll(2, 200, '2d20', keep='high')
     assert engine.store.setting(1)['mode'] == mode
-    assert engine.rng.calls == 8
+    assert engine.rng.calls == 4
 
 
 def test_target_follows_user_across_servers_not_guild_ids(make_engine):
@@ -132,11 +132,11 @@ def test_text_face_control_preserves_case_and_spaces(make_engine):
 
 
 def test_luck_skips_text_without_eating_random_draw_or_breaking_numeric_roll(make_engine):
-    engine = make_engine(['rain', 3, 18])
+    engine = make_engine(['rain', 3])
     dm(engine, '!Rigger good')
     assert engine.roll(2, 100, faces=['sun', 'rain'])['dice']['total'] is None
-    assert engine.roll(2, 200)['dice']['total'] == 18
-    assert engine.rng.calls == 3
+    assert engine.roll(2, 200)['dice']['total'] == 20
+    assert engine.rng.calls == 2
 
 
 def test_invalid_roll_and_invalid_json_dont_consume_one_use_control(make_engine):

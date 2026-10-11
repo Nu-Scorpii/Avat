@@ -1,6 +1,10 @@
-# Validation · 3.3.0
+# Validation · 3.4.0
 
-**335 automated tests pass on Python 3.12**, including 62 new tests for percentage strength, stacking, individual stats, and active-rig management. Source and bundle startup checks validate the real two-command tree: `/roll` and `/avatar`.
+**390 automated tests pass on Python 3.12**, including 55 new duration tests and the previous percentage, stacking, individual-stat, and active-rig coverage. Source and bundle startup checks validate the real two-command tree: `/roll` and `/avatar`.
+
+Duration coverage checks finite and permanent settings for force, shift, good/bad luck, and text faces; independent expiration across servers; one use per multi-die custom roll; complete-character and all-stat luck; mixed per-player durations; all six stat rigs with different counters; persistence across restart; migration of old rigs; explicit replenishment versus duplicate Apply; other-player/scope isolation; invalid input; receipt replays; text/overridden luck; skipped branches; impossible requests; corrupt individual counters; and atomic rollback after receipt failure.
+
+Private duration UI tests exercise the actual button and form, entering a duration before a force value, draft versus Apply, live remaining-use display, editing an existing allowance, switching to permanent, owner/server/expired/stale guards, and real modal/view/embed payload limits. Existing 335 regression tests remain passing.
 
 New coverage checks good/bad strength from 1–100%, numeric rounding, optional percent-sign input, invalid percentages, signed dice and bonuses, highest/lowest selection, sparse weighted numeric faces, legal results, monotonic strength, and no extra random draws for luck.
 

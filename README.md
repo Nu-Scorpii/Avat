@@ -1,4 +1,4 @@
-# Simple Discord Dice Bot · 3.3.0
+# Simple Discord Dice Bot · 3.4.0
 
 Two public commands: `/roll` for custom dice and `/avatar` for Avatar character creation. Creator controls work privately in DMs. No character tracking, battles, attendance, or saved-die menus.
 
@@ -71,7 +71,7 @@ The message shows the six stat values and each applicable category with its actu
 
 ## Creator
 
-Open the bot's DMs and send **`!rigger`**. Choose a player, roll, and change, enter a value or pick a preset, then press **Apply**. `!Rigger` works too. No command arguments or server IDs are needed. Appended old arguments open the panel without arming anything.
+Open the bot's DMs and send **`!rigger`**. Choose a player, roll, and change, enter a value or pick a preset, choose **Duration**, then press **Apply**. Enter a number such as `3`, or `permanent`. `!Rigger` works too. No command arguments or server IDs are needed. Appended old arguments open the panel without arming anything.
 
 Only the account configured as `BOT_OWNER_ID` can open the panel, use its buttons, or submit its forms. It never appears in slash menus. Server messages are ignored. Choose the exact Avatar part when modifying `/avatar`; choosing `/roll` affects custom rolls only. Presets include nations, tribes, family tiers, bender/non-bender, elements, and combat styles. Whole-character Avatar controls support good/bad luck.
 
@@ -79,7 +79,11 @@ The first draft targets **you**; reopening resumes the most recently added rig a
 
 **Good/bad luck has 1–100% strength.** Use **Luck %** to enter `37` or `37%`, or pick 1/25/50/75/100 from the menu. Each numeric die moves that fraction toward its best/worst legal face, rounded to the nearest legal value; ties round toward the extreme. **50% means halfway; 100% gives the best/worst face.** Strength is not a chance of activation. Tiny strengths can round to no change. Signed dice respect the final total; bonuses stay unchanged; text dice skip luck.
 
-**Several rigs can affect one Avatar character.** Apply adds or updates only the same player + roll + kind of change. For example, force Nation to Water Tribes, force Bending to 100, and set each **Stat 1–6** independently to 1–20. Force, shift, and luck can coexist on one part. Good and bad share one luck slot. Specific luck overrides whole-character luck; a stat's luck overrides all-six-stats luck. Each part applies luck, then shift, then exact force. Force wins. Force/shift/text-face rigs are used once; luck remains until removed.
+**Several rigs can affect one Avatar character.** Apply adds or updates only the same player + roll + kind of change. For example, force Nation to Water Tribes, force Bending to 100, and set each **Stat 1–6** independently to 1–20. Force, shift, and luck can coexist on one part. Good and bad share one luck slot. Specific luck overrides whole-character luck; a stat's luck overrides all-six-stats luck. Each part applies luck, then shift, then exact force. Force wins.
+
+**Every rig has its own duration.** Use **Duration** to set 1–1,000,000 uses, or `permanent` until removed. One `/roll` command spends one use, even for a pool of dice. One `/avatar` character spends one use of each affected rig: whole-character and all-six-stats luck affect every applicable die before their counters decrease once. Each Stat 1–6 rig can have a different duration. Finite conditional-part rigs reserve character uses, so a skipped part also spends one use of that rig without drawing extra dice. Permanent rigs remain active. Other players, other command scopes, invalid input, recent duplicate requests, skipped text luck, and fully overridden luck do not spend uses. Impossible changes spend one use and explain privately.
+
+Without a chosen duration, force/shift/text defaults to one use and luck to permanent. Existing rigs retain those defaults. Reopening or editing a rig loads its current remaining uses into the draft. **Apply sets only that slot's allowance to the duration shown**, so reapplying can replenish it; duplicate deliveries of the same Apply cannot. Check the Duration field before applying a reused draft.
 
 **Stat 1–6** means the first through sixth values displayed in the existing 6d20 roll. It does not roll extra dice. **All six stats** and **Whole character** support luck; choose individual stats for exact values or point shifts.
 
@@ -135,7 +139,7 @@ For local play, copy `.env.example` to `.env`, fill in your token and creator ID
 - Volume error: attach the volume to this service and place the database under its real mount, then redeploy. Retain the original database file when updating.
 - Private panel not opening: DM `!rigger` from the exact account identified by `BOT_OWNER_ID`; allow DMs from the bot. This variable must contain your user ID, not the application ID. There is no public `/rigger` command.
 - Old or expired buttons: DM `!rigger` again. Reopening does not arm, clear, or rearm a saved setting.
-- A rig did not apply: open **Active rigs**, check its player ID, roll, and value/strength, and press **Apply** after draft edits. Specific luck overrides broader luck; exact force wins over luck or a shift. Small percentages may round to no change. `/roll` rigs do not affect `/avatar`.
-- A forced result was impossible or its Avatar part was skipped: the regular roll remains valid and the one-use setting clears. The panel's **Last affected roll** and your private notice explain why.
+- A rig did not apply: open **Active rigs**, check its player ID, roll, value/strength, and remaining uses. Press **Apply** after draft edits. Specific luck overrides broader luck; exact force wins over luck or a shift. Small percentages may round to no change. `/roll` rigs do not affect `/avatar`.
+- A forced result was impossible or its Avatar part was skipped: the regular roll remains valid; finite rigs spend one use and expire at zero, while permanent rigs stay. The panel's **Last affected roll** and your private notice explain why.
 
 Official API reference: https://discordpy.readthedocs.io/en/stable/interactions/api.html

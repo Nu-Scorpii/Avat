@@ -3,7 +3,7 @@
 import logging
 import secrets
 import discord
-from .controls import category, panel_setting, player_id
+from .controls import category, panel_setting, player_id, rig_uses
 from .display import chunks, safe
 from .errors import RollError
 
@@ -26,11 +26,11 @@ ROLLS = {
     'combat': ('/avatar · Non-bender combat', 'Sword, Bow, Fan, Fists, or Pressure point.'),
 }
 MODES = {
-    'force': ('Force a result', 'Use once. Set an exact final total or choose an outcome.'),
-    'shift': ('Add / subtract points', 'Use once. Enter +3, -2, or another whole number.'),
-    'good': ('Good luck', '1–100% strength toward the highest legal result. Lasts until removed.'),
-    'bad': ('Bad luck', '1–100% strength toward the lowest legal result. Lasts until removed.'),
-    'face': ('Text face', 'Use once. Choose an exact label from a custom /roll die.'),
+    'force': ('Force a result', 'Set an exact final total or choose an outcome. Duration controls how long it lasts.'),
+    'shift': ('Add / subtract points', 'Enter +3, -2, or another whole number. Duration controls how long it lasts.'),
+    'good': ('Good luck', '1–100% strength toward the highest legal result. Choose its Duration.'),
+    'bad': ('Bad luck', '1–100% strength toward the lowest legal result. Choose its Duration.'),
+    'face': ('Text face', 'Choose an exact label from a custom /roll die, then choose its Duration.'),
 }
 PRESETS = {
     'nation': [('Fire Nation', 1), ('Water Tribes', 26), ('Earth Kingdom', 51), ('Nomad', 76)],
@@ -44,11 +44,16 @@ PRESETS = {
 HELP = ('1. Choose the roll you want to change.\n'
         '2. Choose Force, Add/subtract, Good luck, Bad luck, or Text face.\n'
         '3. Choose player, or use Target me.\n'
-        '4. Pick an outcome or Enter value, then press Apply.\n\n'
+        '4. Pick an outcome or Enter value.\n'
+        '5. Use Duration: enter a number of uses or permanent, then Apply.\n\n'
         'Only Apply changes live rolls. Add several Avatar rigs for the same player. '
         'Apply replaces only the same player + roll + kind; other rigs stay active. '
-        'Good/bad share one luck slot. Force, shifts, and text faces are used once. '
-        'Luck stays on until removed. Active rigs lists every saved rig, with player filtering, '
+        'Good/bad share one luck slot. Every rig can last 1–1,000,000 uses or be permanent. '
+        'Defaults are one use for force/shift/text and permanent for luck. '
+        'One /roll command is one use, even with several dice. One /avatar character '
+        'is one use per affected rig, even for whole-character or all-six-stats luck. '
+        'Finite conditional-part rigs also spend one character use if that part is skipped. '
+        'Permanent rigs stay until removed. Active rigs shows remaining uses, with player filtering, '
         'Edit selected, Remove selected, Clear player, and Clear all. '
         'Player targets work in every server; no server ID is needed.\n\n'
         'Luck strength is 1–100%, not a chance to activate. Each numeric die moves that '
@@ -60,8 +65,9 @@ HELP = ('1. Choose the roll you want to change.\n'
         'luck, which overrides whole-character luck. Luck, then shift, then exact force '
         'runs on each part; force wins. Higher/lower means the number, not which nation is best. '
         'A /roll setting never changes /avatar. '
-        'A skipped one-use Avatar part clears after that player\'s character. '
-        'For an impossible result, the normal roll is used and only you get the explanation.\n\n'
+        'Other players, other command scopes, invalid commands, and duplicate requests do not spend uses. '
+        'Impossible changes spend one use; permanent rigs stay. Only you get the explanation. '
+        'Apply resets just that slot to the duration shown in the draft.\n\n'
         'The Nomad element d3 runs only for Nomad characters with bending above 60. '
         'It never creates Air bending.\n\n'
         'To copy a player ID: Discord Settings → Advanced → Developer Mode, then '
@@ -77,11 +83,16 @@ def roll_label(rule):
 
 def change_label(rule):
     mode, value = rule['mode'], rule['value']
+    duration = duration_label(rule.get('remaining', rig_uses(mode)))
     if mode in ('good', 'bad'):
-        return f"{'Good' if mode == 'good' else 'Bad'} luck {value}% · until removed"
+        return f"{'Good' if mode == 'good' else 'Bad'} luck {value}% · {duration}"
     if mode == 'shift':
-        return f'Shift {value:+d} · once'
-    return f"{'Force' if mode == 'force' else 'Text face'} {value} · once"
+        return f'Shift {value:+d} · {duration}'
+    return f"{'Force' if mode == 'force' else 'Text face'} {value} · {duration}"
+
+
+def duration_label(remaining):
+    return 'Permanent' if remaining is None else f"{remaining:,} {'use' if remaining == 1 else 'uses'} left"
 
 
 async def private_reply(interaction, text):
@@ -147,15 +158,19 @@ class PanelInput(discord.ui.Modal):
         self.mode, self.roll = panel.draft['mode'], panel.roll
         self.target = panel.draft['target']
         luck = self.mode in ('good', 'bad')
-        super().__init__(title='Choose player' if kind == 'target' else 'Luck strength' if luck else 'Enter value', timeout=180)
-        current = panel.draft['target' if kind == 'target' else 'value']
+        super().__init__(title='Choose player' if kind == 'target' else 'Rig duration' if kind == 'duration' else
+                         'Luck strength' if luck else 'Enter value', timeout=180)
+        current = (rig_uses(self.mode, panel.draft.get('uses', 'default')) if kind == 'duration' else
+                   panel.draft['target' if kind == 'target' else 'value'])
         self.field = discord.ui.TextInput(
-            default=str(current) if current is not None else None,
+            default='permanent' if kind == 'duration' and current is None else str(current) if current is not None else None,
             placeholder='Paste their user ID or mention' if kind == 'target' else
+                        '3, 10, or permanent' if kind == 'duration' else
                         '1–100, such as 50' if luck else
                         'Exact face label' if self.mode == 'face' else 'Whole number, such as 15 or -2',
             min_length=1, max_length=40)
-        self.add_item(discord.ui.Label(text='Player user ID or mention' if kind == 'target' else 'Strength (%)' if luck else 'Value',
+        self.add_item(discord.ui.Label(text='Player user ID or mention' if kind == 'target' else
+                                      'Number of uses, or permanent' if kind == 'duration' else 'Strength (%)' if luck else 'Value',
                                       component=self.field))
 
     async def interaction_check(self, interaction):
@@ -184,10 +199,13 @@ class PanelInput(discord.ui.Modal):
                 self.panel.draft['target'] = target
             else:
                 if self.mode != self.panel.draft['mode'] or self.roll != self.panel.roll:
-                    raise RollError('The selected roll or mode changed. Open Enter value again.')
-                draft = {**self.panel.draft, 'value': self.field.value}
-                new = panel_setting(**draft)
-                self.panel.draft['value'] = new['value']
+                    raise RollError('The selected roll or mode changed. Open the form again.')
+                if self.kind == 'duration':
+                    self.panel.draft['uses'] = rig_uses(self.mode, self.field.value)
+                else:
+                    draft = {**self.panel.draft, 'value': self.field.value}
+                    new = panel_setting(**draft)
+                    self.panel.draft['value'] = new['value']
             self.panel.note = 'Draft updated. Press Apply when ready.'
             await self.panel.update(interaction)
         except RollError as exc:
@@ -207,10 +225,11 @@ class RiggerPanel(discord.ui.View):
         self.page, self.active_page, self.selected_id, self.player_only = 'edit', 0, None, False
         if not active['rules']:
             self.draft = {'mode': 'force', 'value': None, 'target': str(bot.engine.owner_id),
-                          'scope': 'roll', 'part': None}
+                          'scope': 'roll', 'part': None, 'uses': 'default'}
         else:
             recent = active['rules'][-1]
             self.draft = {key: recent[key] for key in ('mode', 'value', 'target', 'scope', 'part')}
+            self.draft['uses'] = recent['remaining']
             # Legacy unrestricted rules stay active until Apply or Turn off.
             # New panel rules always have an explicit command scope.
             if self.draft['scope'] == 'all':
@@ -220,7 +239,7 @@ class RiggerPanel(discord.ui.View):
             if self.draft['part'] == 'stats' and self.draft['mode'] not in ('good', 'bad'):
                 self.draft.update(mode='good', value=50)
         self.roll = self.draft['part'] or self.draft['scope']
-        self.note = 'Choose player, roll, and outcome. Press Apply to arm it.'
+        self.note = 'Choose player, roll, outcome, and duration. Press Apply to arm it.'
         self.build_items()
 
     def component_id(self, key):
@@ -260,6 +279,7 @@ class RiggerPanel(discord.ui.View):
             ('Choose player', 'target', self.choose_target, 3, discord.ButtonStyle.secondary),
             ('Target me', 'me', self.target_me, 3, discord.ButtonStyle.secondary),
             ('Luck %' if self.draft['mode'] in ('good', 'bad') else 'Enter value', 'value', self.choose_value, 3, discord.ButtonStyle.secondary),
+            ('Duration', 'duration', self.choose_duration, 3, discord.ButtonStyle.secondary),
             ('Apply', 'apply', self.apply, 4, discord.ButtonStyle.success),
             ('Active rigs', 'active_page', self.show_active, 4, discord.ButtonStyle.primary),
             ('Clear all', 'off', self.turn_off, 4, discord.ButtonStyle.danger),
@@ -339,6 +359,8 @@ class RiggerPanel(discord.ui.View):
         embed.add_field(name='Strength' if self.draft['mode'] in ('good', 'bad') else 'Value',
                         value=f'{value}%' if self.draft['mode'] in ('good', 'bad') else
                         safe(value) if value is not None else 'Pick an outcome or Enter value', inline=False)
+        embed.add_field(name='Duration', value=duration_label(rig_uses(self.draft['mode'], self.draft.get('uses', 'default'))),
+                        inline=False)
         player_rules = [r for r in active['rules'] if r['target'] == target]
         brief = [f"#{r['id']} · {roll_label(r)} · {change_label(r)}" for r in player_rules[:4]]
         embed.add_field(name=f"Active rigs · {len(active['rules'])} total / {len(player_rules)} for this player",
@@ -346,7 +368,7 @@ class RiggerPanel(discord.ui.View):
                               'No rigs for this player. Open Active rigs to check everyone.'), inline=False)
         if active['last']:
             embed.add_field(name='Last affected roll', value=safe(active['last'])[:1024], inline=False)
-        embed.set_footer(text='Private to you • Apply adds or updates one rig • Force/shift once; luck until removed')
+        embed.set_footer(text='Private to you • Duration: number of uses or permanent • Each /avatar counts once')
         return embed
 
     async def update(self, interaction):
@@ -361,6 +383,9 @@ class RiggerPanel(discord.ui.View):
 
     async def choose_value(self, interaction):
         await interaction.response.send_modal(PanelInput(self, 'value'))
+
+    async def choose_duration(self, interaction):
+        await interaction.response.send_modal(PanelInput(self, 'duration'))
 
     async def target_me(self, interaction):
         self.draft['target'] = str(self.bot.engine.owner_id)
@@ -423,6 +448,7 @@ class RiggerPanel(discord.ui.View):
             await private_reply(interaction, 'This is a legacy rig. Remove it and create an explicit /roll or Avatar rig.')
             return
         self.draft = {key: rule[key] for key in ('mode', 'value', 'target', 'scope', 'part')}
+        self.draft['uses'] = rule['remaining']
         self.draft['target'] = self.draft['target'] or str(self.bot.engine.owner_id)
         self.roll = self.draft['part'] or self.draft['scope']
         self.page = 'edit'

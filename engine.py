@@ -19,10 +19,11 @@ class DiceEngine:
         return self.store.controls(self.owner_id)
 
     def configure(self, author_id, *, is_dm, mode, value=None, target=None,
-                  scope='roll', part=None, request_id=None):
+                  scope='roll', part=None, uses='default', request_id=None):
         """Only the owner configures controls; any selected player can receive them."""
         require(is_dm and author_id == self.owner_id, 'These controls are private to the bot creator.')
-        new = panel_setting(mode, value, self.owner_id if target is None else target, scope=scope, part=part)
+        new = panel_setting(mode, value, self.owner_id if target is None else target,
+                            scope=scope, part=part, uses=uses)
         signature = json.dumps(['apply', author_id, new], sort_keys=True, ensure_ascii=False)
         with self.store.transaction():
             cached = self.store.receipt('panel', request_id, signature)
@@ -34,10 +35,10 @@ class DiceEngine:
             else:
                 existing = next((r for r in controls['rules'] if rule_key(r) == rule_key(new)), None)
                 if existing:
-                    existing.update({key: new[key] for key in ('mode', 'value', 'target', 'scope', 'part')})
+                    existing.update({key: new[key] for key in ('mode', 'value', 'target', 'scope', 'part', 'remaining')})
                 else:
                     require(len(controls['rules']) < MAX_RIGS, '100 rigs are already active. Remove an unused rig first.')
-                    controls['rules'].append({key: new[key] for key in ('mode', 'value', 'target', 'scope', 'part')} |
+                    controls['rules'].append({key: new[key] for key in ('mode', 'value', 'target', 'scope', 'part', 'remaining')} |
                                              {'id': controls['next_id']})
                     controls['next_id'] += 1
             self.store.save_controls(self.owner_id, controls)
@@ -101,12 +102,24 @@ class DiceEngine:
                 and (rule['part'] is None or rule['part'] == part
                      or part in STAT_PARTS and rule['part'] == 'stats'))
 
-    def _draw(self, user_id, plan, controls, *, part=None, natural=None, exact_only=False):
+    @staticmethod
+    def _consume(controls, used):
+        """Each affected command spends at most one use of each rig, atomically."""
+        for rule in controls['rules']:
+            if rule['id'] in used and rule['remaining'] is not None:
+                rule['remaining'] -= 1
+        controls['rules'] = [rule for rule in controls['rules'] if rule['remaining'] != 0]
+
+    def _draw(self, user_id, plan, controls, used, *, part=None, natural=None, exact_only=False):
         """Apply luck, shift, then exact force. Only the most specific of each kind wins."""
         natural = plan.roll(self.rng) if natural is None else natural
         result, notices, records = natural, [], []
         candidates = [r for r in controls['rules'] if self._matches(r, user_id, part)
-                      and (not exact_only or r['part'] == part and category(r) != 'luck')]
+                      and (not exact_only or r['part'] == part and category(r) != 'luck')
+                      # An old unrestricted exact control changes only the first
+                      # eligible part of an Avatar, as it did before durations.
+                      and not (r['scope'] == 'all' and r['part'] is None
+                               and category(r) != 'luck' and r['id'] in used)]
         chosen = {}
         def priority(rule):
             specificity = 2 if rule['part'] == part else 1 if rule['part'] == 'stats' else 0
@@ -133,8 +146,11 @@ class DiceEngine:
                     result = force_total(plan, result, target)
             except Unavailable as exc:
                 unchanged = ('The roll stayed normal' if result == natural else 'Other successful changes were kept')
+                duration = ('this rig stays permanent' if rule['remaining'] is None else
+                            'this one-use rig is cleared' if rule['remaining'] == 1 else
+                            f"one use is spent; {rule['remaining'] - 1} remain")
                 notices.append(f"{('Avatar ' + part + ': ') if part else ''}Rig #{rule['id']} could not apply: "
-                               f'{exc}. {unchanged}; this one-use rig is cleared.')
+                               f'{exc}. {unchanged}; {duration}.')
             detail = f"{mode} {value}{'%' if kind == 'luck' else ''}"
             record = f"{part or '/roll'} · #{rule['id']} {detail}: {before['total']} → {result['total']}"
             if kind == 'luck' and not plan.numeric:
@@ -142,8 +158,8 @@ class DiceEngine:
             elif mode == 'face':
                 record += f' · {value}'
             records.append(record)
-            if kind != 'luck':
-                controls['rules'] = [r for r in controls['rules'] if r['id'] != rule['id']]
+            if kind != 'luck' or plan.numeric:
+                used.add(rule['id'])
         return result, notices, records
 
     def roll_plan(self, user_id, guild_id, plan, *, request_id=None):
@@ -154,7 +170,9 @@ class DiceEngine:
             if cached is not None:
                 return {**cached, 'replayed': True}
             controls = self.store.controls(self.owner_id)
-            result, notices, records = self._draw(user_id, plan, controls)
+            used = set()
+            result, notices, records = self._draw(user_id, plan, controls, used)
+            self._consume(controls, used)
             if records:
                 controls['last'] = (f'User {user_id} · server {guild_id}\n' + '\n'.join(records + notices))[:1000]
                 self.store.save_controls(self.owner_id, controls)
@@ -169,42 +187,45 @@ class DiceEngine:
             if cached is not None:
                 return {**cached, 'replayed': True}
             controls = self.store.controls(self.owner_id)
-            notices, records, drawn = [], [], set()
+            notices, records, drawn, used = [], [], set(), set()
 
             def draw(part, plan):
                 drawn.add(part)
                 if part == 'stats':
                     pool = plan.roll(self.rng)
                     # Preserve a legacy six-die total control before individual slots.
-                    pool, notes, history = self._draw(user_id, plan, controls, part='stats', natural=pool, exact_only=True)
+                    pool, notes, history = self._draw(user_id, plan, controls, used,
+                                                     part='stats', natural=pool, exact_only=True)
                     notices.extend(notes)
                     records.extend(history)
                     single = prepare('1d20')
                     values = []
                     for slot, value in zip(STAT_PARTS, values_of(pool)):
                         drawn.add(slot)
-                        result, notes, history = self._draw(user_id, single, controls, part=slot,
+                        result, notes, history = self._draw(user_id, single, controls, used, part=slot,
                                                            natural=single.result([value]))
                         values.append(result['total'])
                         notices.extend(notes)
                         records.extend(history)
                     return plan.result(values)
-                result, notes, history = self._draw(user_id, plan, controls, part=part)
+                result, notes, history = self._draw(user_id, plan, controls, used, part=part)
                 notices.extend(notes)
                 records.extend(history)
                 return result
 
             character = create_character(draw)
-            # A one-use conditional part belongs to this character, even if
-            # that branch does not exist. Do not surprise the next player.
+            # A finite conditional rig reserves character uses, even when that
+            # character does not need its branch. Permanent rigs remain active.
             skipped = [r for r in controls['rules'] if r['scope'] in ('avatar', 'all')
                        and r['part'] is not None and r['part'] not in drawn
-                       and (r['target'] is None or r['target'] == str(user_id)) and category(r) != 'luck']
+                       and (r['target'] is None or r['target'] == str(user_id)) and r['remaining'] is not None]
             for rule in skipped:
+                duration = (f"One-use rig #{rule['id']} is cleared." if rule['remaining'] == 1 else
+                            f"Rig #{rule['id']} spent one character use; {rule['remaining'] - 1} remain.")
                 notices.append(f"Avatar {rule['part']} was not rolled for user {user_id}: this character did not need it. "
-                               f"One-use rig #{rule['id']} is cleared.")
-            skipped_ids = {r['id'] for r in skipped}
-            controls['rules'] = [r for r in controls['rules'] if r['id'] not in skipped_ids]
+                               + duration)
+                used.add(rule['id'])
+            self._consume(controls, used)
             if records or notices:
                 controls['last'] = (f'User {user_id} · server {guild_id}\n' + '\n'.join(records + notices))[:1000]
                 self.store.save_controls(self.owner_id, controls)

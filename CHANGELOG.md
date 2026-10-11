@@ -1,3 +1,11 @@
+# Version 3.4.0
+
+- Added Duration to the creator-only DM panel: every rig supports a chosen number of uses or permanent until removed, including force, shift, numeric luck, and text faces.
+- Tracked remaining uses independently for every player/part/kind, including all six individual stat rigs. Active rigs and the draft show duration; Edit selected loads the live remaining allowance.
+- Counted one `/roll` pool or one complete `/avatar` as one use per affected rig. Whole-character and all-stat luck finish all applicable dice before decrementing once. Finite conditional rigs reserve character uses, including skipped branches; permanent rigs remain.
+- Preserved counters across restarts, duplicate-request protection, owner-only controls, global user targets, legal dice, and atomic character/rig/receipt writes. Existing force/shift/face rigs migrate to one use; luck remains permanent.
+- Verified 390 tests, including 55 duration tests covering every mode, per-stat counters, mixed durations, persistence, replays, rollback, skip/failure behavior, owner/stale-form checks, and real UI payloads.
+
 # Version 3.3.0
 
 - Added 1–100% good/bad luck strength and input accepting `50` or `50%`. Numeric faces move that fraction toward their legal best/worst face; signed dice and keep-high/low remain valid; text dice skip luck.

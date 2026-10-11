@@ -11,6 +11,7 @@ HELP = ('DM !rigger to use the private panel. Choose a player and roll, then App
 
 MAX_VALUE = 200_000_000_000
 MAX_RIGS = 100
+MAX_USES = 1_000_000
 TARGET = re.compile(r'(?:<@!?(\d+)>|(\d+))\Z')
 NUMBER = re.compile(r'[+-]?\d+\Z')
 COMMAND = re.compile(r'!rigger(?:\s|$)', re.IGNORECASE)
@@ -28,7 +29,21 @@ def player_id(value):
     return str(int(match[1] or match[2]))
 
 
-def panel_setting(mode, value=None, target=None, *, scope='roll', part=None):
+def rig_uses(mode, uses='default'):
+    """None means permanent; old defaults are one use or lasting luck."""
+    if uses == 'default':
+        return None if mode in ('good', 'bad') else 1
+    if uses is None or isinstance(uses, str) and uses.strip().lower() == 'permanent':
+        return None
+    require(isinstance(uses, (str, int)) and not isinstance(uses, bool)
+            and len(str(uses)) <= 20 and re.fullmatch(r'\d+', str(uses).strip()),
+            'Enter a whole number of uses, such as 3, or permanent.')
+    uses = int(str(uses).strip())
+    require(1 <= uses <= MAX_USES, 'Choose 1–1,000,000 uses, or permanent.')
+    return uses
+
+
+def panel_setting(mode, value=None, target=None, *, scope='roll', part=None, uses='default'):
     """Validate a panel draft before changing the active setting."""
     require(mode in ('off', 'force', 'shift', 'good', 'bad', 'face'), 'Choose a control mode.')
     if mode == 'off':
@@ -62,7 +77,8 @@ def panel_setting(mode, value=None, target=None, *, scope='roll', part=None):
                 'Enter a whole luck strength from 1 to 100.')
         value = int(text)
         require(1 <= value <= 100, 'Luck strength must be 1–100%. Use Remove selected to turn it off.')
-    return {'mode': mode, 'value': value, 'target': target, 'part': part, 'scope': scope, 'last': None}
+    return {'mode': mode, 'value': value, 'target': target, 'part': part, 'scope': scope,
+            'remaining': rig_uses(mode, uses), 'last': None}
 
 
 def parse_command(content):

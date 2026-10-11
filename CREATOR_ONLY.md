@@ -1,4 +1,4 @@
-# Private Rigger panel · 3.3.0
+# Private Rigger panel · 3.4.0
 
 **DM the bot `!rigger`.** Only the account configured as `BOT_OWNER_ID` can open and use it. `!Rigger` also works. No extra words or server IDs are needed.
 
@@ -7,9 +7,26 @@
 1. **Choose player** and paste their user ID or mention, or use **Target me**.
 2. Choose **/roll**, an **Avatar part**, **Stat 1–6**, **All six stats**, or **Whole character**.
 3. Choose Force, Add/subtract, Good luck, Bad luck, or Text face where available.
-4. Pick a preset or enter the value, then **Apply**.
+4. Pick a preset or enter the value.
+5. Press **Duration**. Enter a number such as `3`, or `permanent`, then **Apply**.
 
-Draft edits do not affect rolls until Apply. Targets work across all servers, including players who do not own the bot. To copy an ID: Discord Settings → Advanced → Developer Mode, then right-click the player → Copy User ID. The first draft targets you; reopening resumes the most recently added rig as a draft.
+Draft edits do not affect rolls until Apply. Targets work across all servers, including players who do not own the bot. To copy an ID: Discord Settings → Advanced → Developer Mode, then right-click the player → Copy User ID. The first draft targets you; reopening resumes the most recently added rig, including its remaining duration, as a draft.
+
+## Duration: uses or permanent
+
+Every kind of rig supports **1–1,000,000 uses** or **permanent**. Press **Duration**, type `3` or `permanent`, and Apply. Each rig has its own counter, including each Stat 1–6 rig. For example, keep Good luck 50% permanent, force Nation to Water for three characters, and force Stat 1 to 18 for just one character.
+
+| Setting | One use means |
+|---|---|
+| `/roll` | One command, including all dice, bonuses, and highest/lowest selection |
+| `/avatar` part or individual stat | One character that uses that rig |
+| All six stats / Whole character luck | One complete character; all applicable dice receive the change before one use is spent |
+| Finite conditional part | One targeted character, even if its branch is skipped; no extra dice are drawn |
+| Permanent | Stays until you remove it or change its duration |
+
+Finite rigs expire automatically at zero. **Active rigs** shows `3 uses left`, `1 use left`, or `Permanent`. Counters and permanent rigs survive restarts and Railway redeploys. Other players and other command scopes do not spend uses. Invalid commands and duplicate recent requests do not spend uses. Text luck and fully overridden luck keep their allowances; an impossible force/shift/face attempt spends one use and explains privately. A permanent impossible rig stays active so you can edit or remove it.
+
+Defaults are one use for force/shift/text and permanent for luck. Old rigs keep those defaults. **Edit selected** loads the live remaining duration. Applying a reused draft sets that slot's allowance to the displayed count; other rigs keep their counters. Use this to replenish a rig deliberately. Check Duration before applying a reused draft.
 
 ## Luck: 1–100% strength
 
@@ -25,7 +42,7 @@ The percentage controls **how strong the change is**, not its chance of happenin
 
 Signed dice respect the final total. Bonuses and fixed modifiers stay unchanged. Custom dice use real numeric faces; gaps can make different percentages produce the same result. Highest/lowest selection remains valid. Text dice skip luck. Luck refers to numbers, not whether an origin or combat style is desirable.
 
-Luck lasts until removed. Use **Active rigs → Remove selected** to turn it off; 0% is not a setting.
+Luck follows its chosen Duration. Set `permanent` to keep it until removed, or set a number of uses. **Active rigs → Remove selected** turns it off immediately; 0% is not a setting.
 
 ## Multiple rigs on one Avatar
 
@@ -39,7 +56,7 @@ When settings overlap:
 
 - A stat's own luck overrides all-six-stats luck, which overrides whole-character luck. Other specific parts override whole-character luck.
 - Each part applies **luck → shift → exact force**. Force wins.
-- Force, shift, and text-face rigs are used once; luck remains. Reapplying a slot updates its value without adding duplicates.
+- Every rig follows its own duration. Reapplying a slot updates its value and resets its allowance to the displayed duration without adding duplicates.
 
 Up to **100 rigs total** can be saved across all players. `/roll` rigs stay separate from Avatar rigs.
 
@@ -53,7 +70,7 @@ Press **Active rigs** to see every rig's number, player ID, roll, value/percenta
 - **Clear all** removes every rig.
 - **Refresh** checks live state. **Back to draft** retains your unsaved edits.
 
-The main panel shows counts and a short player preview. Status updates privately after rolls, including consumed rigs and the last affected roll. A draft can still show a value after its one-use rig is consumed; Active rigs is the live list.
+The main panel shows counts and a short player preview. Status updates privately after rolls, including remaining uses, expired rigs, and the last affected roll. A draft can still show a value or duration after a rig expires; Active rigs is the live list.
 
 ## Avatar choices
 
@@ -70,7 +87,7 @@ The main panel shows counts and a short player preview. Status updates privately
 
 Final rigged values determine later rolls. **Only a final Nomad with bending above 60 rolls the element d3.** Other benders receive their nation's element. At 60 or below, the character rolls non-bender combat. There is no Air bending. Water's tribe d3 is a separate origin roll.
 
-A skipped conditional part draws no extra dice. Its one-use rig clears privately after that player's Avatar; its luck rig stays active. Impossible force/shift requests clear only that rig, leave that change unapplied, and explain privately. Other successful changes remain effective. Custom `/roll` force includes modifiers and bonuses in its exact total.
+A skipped conditional part draws no extra dice. Its finite rig spends one character use; its permanent rig stays active. Impossible force/shift requests spend one use of that rig, leave that change unapplied, and explain privately; permanent rigs stay. Other successful changes remain effective. Custom `/roll` force includes modifiers and bonuses in its exact total.
 
 ## Restarts and privacy
 

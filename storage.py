@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import json
 from pathlib import Path
 import sqlite3
-from .controls import empty_controls, empty_setting, MAX_VALUE, MAX_RIGS, PART_DICE, PART_LIMITS, rule_key
+from .controls import empty_controls, empty_setting, MAX_VALUE, MAX_RIGS, MAX_USES, PART_DICE, PART_LIMITS, rig_uses, rule_key
 from .errors import require
 
 CACHE_LIMIT = 1000
@@ -56,7 +56,9 @@ class Store:
             value = 100 if value is None else value
             assert type(value) is int and 1 <= value <= 100
         assert type(identity) is int and identity > 0
-        return dict(id=identity, mode=mode, value=value, target=target, part=part, scope=scope)
+        remaining = state.get('remaining', rig_uses(mode))
+        assert remaining is None or type(remaining) is int and 1 <= remaining <= MAX_USES
+        return dict(id=identity, mode=mode, value=value, target=target, part=part, scope=scope, remaining=remaining)
 
     def controls(self, owner):
         """Read stacked controls, upgrading a v3 single setting without losing it."""

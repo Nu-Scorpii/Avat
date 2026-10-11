@@ -1,3 +1,14 @@
+# Version 3.2.0
+
+- Replaced the live Rigger argument interface with a creator-only DM panel opened by `!rigger` or `!Rigger`.
+- Added explicit player targeting, per-command and Avatar-part menus, preset outcomes, editable values, Apply, Turn off, Refresh, and Help. Draft changes never arm a setting.
+- Defaulted new controls to the owner, verified copied player IDs through Discord, and allowed selected non-owner players to receive controls across servers without server IDs or cached membership.
+- Checked creator authorization at panel, button, select, modal, and engine boundaries. Reopening invalidates old controls; expired forms cannot apply changes.
+- Separated `/roll` settings from Avatar settings. Added whole-character Avatar luck while keeping force/shift tied to a specific Avatar part.
+- Corrected bending to strictly above 60: 1–60 is non-bender; 61–100 is bender. Only a Nomad bender draws the element d3, using the final controlled bending outcome.
+- Refreshed private active status after rolls. Kept persistent storage, atomic one-use consumption, duplicate-request handling, and the two-command public interface.
+- Added panel, owner authorization, non-owner targeting, scope, timeout, persistence, payload, and strict bending regression coverage. All 273 tests pass.
+
 # Version 3.1.0
 
 - Added `/avatar`: IQ 1d20, six stat d20s, nation, conditional origin, bending check, and a Nomad element or non-bender combat style.

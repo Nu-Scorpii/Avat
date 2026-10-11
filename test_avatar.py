@@ -10,9 +10,9 @@ from test_controls import dm
 from test_discord import interaction
 
 
-def draws(nation, detail=1, bending=60, end=1):
+def draws(nation, detail=1, bending=61, end=1):
     return [11, 1, 2, 3, 4, 5, 6, nation] + ([detail] if nation <= 75 else []) + [bending] + (
-        [end] if bending < 60 or nation > 75 else [])
+        [end] if bending <= 60 or nation > 75 else [])
 
 
 @pytest.mark.parametrize('nation,expected,branch', [
@@ -48,7 +48,7 @@ def test_earth_control_boundaries(value, expected, make_engine):
 
 
 @pytest.mark.parametrize('nation,element', [(1, 'Fire'), (26, 'Water'), (51, 'Earth'), (76, 'Fire')])
-@pytest.mark.parametrize('value,bender', [(1, False), (59, False), (60, True), (100, True)])
+@pytest.mark.parametrize('value,bender', [(1, False), (59, False), (60, False), (61, True), (100, True)])
 def test_bending_threshold_and_nation_element(nation, element, value, bender, make_engine):
     character = make_engine(draws(nation, bending=value)).avatar(2, 100)['character']
     assert character['bender'] is bender
@@ -166,7 +166,7 @@ def test_shift_is_exact_and_impossible_shift_stays_normal(make_engine):
 
 @pytest.mark.parametrize('mode,expected', [('good', 18), ('bad', 4)])
 def test_part_luck_only_redraws_that_part_and_persists(mode, expected, make_engine):
-    engine = make_engine([4, 18, 1, 2, 3, 4, 5, 6, 1, 1, 60, 7])
+    engine = make_engine([4, 18, 1, 2, 3, 4, 5, 6, 1, 1, 61, 7])
     dm(engine, f'!Rigger iq {mode}')
     assert engine.avatar(2, 100)['character']['iq'] == expected
     assert engine.roll(2, 200)['dice']['total'] == 7

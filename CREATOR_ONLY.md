@@ -1,79 +1,60 @@
-# Creator controls · 3.1.0
+# Private Rigger panel · 3.2.0
 
-**DM the bot from your creator account.** Server messages are ignored. Your account must match `BOT_OWNER_ID`; server owners, administrators, and GM roles cannot bypass this check. No server ID is needed.
+**DM the bot `!rigger`.** This opens the panel. No extra words, numbers, server IDs, or slash commands are needed. `!Rigger` also works. Only the account configured as `BOT_OWNER_ID` can open or operate it. DMs keep it out of player channels; privileged Message Content intent is not required.
 
-| Send this | What it does |
-|---|---|
-| `!Rigger 15` | Forces the **next final numeric total** to 15 |
-| `!Rigger +3` | Adds exactly 3 to the next numeric total |
-| `!Rigger -2` | Subtracts exactly 2 from the next numeric total |
-| `!Rigger good` | Rolls twice and uses the better whole roll until turned off |
-| `!Rigger bad` | Rolls twice and uses the worse whole roll until turned off |
-| `!Rigger off` | Clears the active setting |
-| `!Rigger status` | Shows the setting and last affected roll privately |
-| `!Rigger help` | Shows this short help in your DMs |
+## Use it in four steps
 
-**There is only one setting.** A new setting replaces the previous setting, including its target. Nothing stacks. Force and shift apply once; luck stays on until replaced or turned off. With no target, the setting applies to anyone in any server the bot joins. Invalid `/roll` input cannot consume it.
+1. **Choose the roll:** custom `/roll`, one `/avatar` part, or whole-character Avatar luck.
+2. **Choose the change:** Force a result, Add/subtract points, Good luck, Bad luck, or Text face.
+3. **Choose the player:** it starts with you. To affect someone else, press **Choose player** and paste their user ID or mention. The bot verifies that it is a player account. **Target me** returns to you.
+4. **Pick an outcome or Enter value**, then press **Apply**.
 
-To target a player, add their mention or copied user ID to a setting:
+**Editing is a draft. Apply arms it.** The panel shows the draft and the separate **Active setting** so you can tell what will affect the next roll. **Turn off** clears the live setting immediately; **Refresh** checks its current status; **Help** explains the buttons.
 
-```text
-!Rigger 15 123456789012345678
-!Rigger +3 @Player
-!Rigger good 123456789012345678
-```
+There is **one active setting**. Each Apply replaces it. Targets follow a player in every server the bot joins. Another player's rolls do not consume that player's setting. Only you operate the panel; your selected target does not need to own the bot.
 
-In DMs, copying the player's user ID is usually easiest. The target is a **person**, not a server. Other players' rolls stay normal and do not consume the setting. To target yourself, add your own user ID.
+To copy a player ID, enable **Discord Settings → Advanced → Developer Mode**, then right-click their profile → **Copy User ID**. Use their user ID, not a server ID, channel ID, or application ID.
 
-Force means the total **after** modifiers and bonus points. For example, `!Rigger 15` followed by `/roll dice:1d20 bonus:3` displays a die of 12 and a total of 15. A multi-die roll is adjusted using valid faces whose total matches; it does not set every die to 15. Keep-high/low follows the same rule. Good/bad compares the final total of two complete ordinary rolls, including subtraction and keep-high/low. Numeric custom dice retain their declared faces; repeated faces preserve their weight during ordinary and luck draws.
+## Choose the change
 
-If an exact force or shift is impossible, the bot returns the ordinary roll, clears the one-use setting, and sends you a private explanation. It never invents an unavailable face or silently picks a nearby total. Example: `[0,5]` cannot produce a total of 3 on one die. A huge custom-face combination can also hit a bounded search limit; the bot fails safely in the same way. Text-containing dice have no numeric total. Good/bad simply skips them and stays enabled.
-
-Two less-common cases:
-
-```text
-!Rigger force -4
-!Rigger face "Heavy Rain"
-```
-
-Use `force` for a negative forced total; a bare `-4` means a shift. `face` forces an exact text label on the next single custom die, with no arithmetic or bonus. It preserves case and spaces, so the label must match a listed face. String labels such as `"7"` are text faces; numeric custom faces use normal total forcing. An incompatible next roll clears that one-use setting and privately explains why it could not apply.
-
-The prefix is case-insensitive. For familiar older syntax, `!Rigger force 15`, `!Rigger shift +3`, and `!Rigger luck good` also work. There are no queues, roll counts, server selectors, or separate lasting/next settings.
-
-Settings survive Railway restarts and version-3 upgrades. Existing 3.0 settings keep working unchanged; pre-version-3 flags are not loaded. Only the current creator's settings are active. Recent duplicate DM/roll deliveries do not rearm or consume them twice. If Discord blocks a private notice, its explanation remains in `!Rigger status`.
-
-## Avatar controls
-
-Put a part before the same simple setting. It applies only to that part of `/avatar`; `/roll` ignores it. You still have **one setting**, and a new one replaces it. Add a user ID at the end as usual to target one player across every server.
-
-```text
-!Rigger nation 30
-!Rigger bending 100
-!Rigger iq +3
-!Rigger stats good
-!Rigger family 100 123456789012345678
-```
-
-| Part | What is controlled | Force range / useful numbers |
+| Change | What to enter | How long it lasts |
 |---|---|---|
-| `iq` | IQ 1d20 | 1–20 |
-| `stats` | The **total** of all six d20s | 6–120; 120 gives six 20s |
-| `nation` | Nation 1d100 | 1–25 Fire, 26–50 Water, 51–75 Earth, 76–100 Nomad |
-| `tribe` | Water origin 1d3 | 1 Southern, 2 Northern, 3 Swamp |
-| `family` | Fire family 1d100 | 1–49 Civilian, 50–79 Military, 80–94 High ranking, 95–100 Royal |
-| `control` | Earth village control 1d20 | 1–15 Yes, 16–20 No |
-| `bending` | Bending check 1d100 | 1–59 Non-bender, 60–100 Bender |
-| `element` | Nomad bender element 1d3 | 1 Fire, 2 Water, 3 Earth |
-| `combat` | Non-bender combat 1d100 | 1–20 Sword, 21–40 Bow, 41–60 Fan, 61–80 Fists, 81–100 Pressure point |
+| Force a result | Exact final total, or a preset outcome | One matching roll |
+| Add/subtract points | Whole number, such as `+3` or `-2` | One matching roll |
+| Good luck | Nothing | Until Turn off or replaced |
+| Bad luck | Nothing | Until Turn off or replaced |
+| Text face | Exact custom die label, preserving capitals and spaces | One matching custom `/roll` |
 
-`!Rigger avatar nation 30` is an optional longer spelling of `!Rigger nation 30`. Part names ignore case. Force values outside the listed range are rejected immediately without changing your active setting. Shifts may fail if the final value would leave the die's range; the result stays normal and only you receive the explanation.
+Force includes arithmetic and bonuses: a forced total of 15 on `1d20` with `bonus:3` shows a die of 12 and total 15. Multi-die force changes legal die faces to reach the total; it does not give every die that number. Good/bad rolls the entire selected pool twice and keeps the higher/lower total, including subtraction and highest/lowest selection. Luck refers to the numeric value, not a judgment about which nation is best.
 
-The changed value determines all later decisions. Forcing a nation into Water Tribes triggers its tribe roll; forcing bending to 100 skips the non-bender combat roll. A non-Nomad bender's element follows their nation automatically; `element` cannot turn them into another element or create an Air bender.
+If a force or shift cannot be produced by the real die faces, the result stays normal and the one-use setting clears. Only you receive the explanation. Text dice have no numeric total; use **Text face** for one custom die instead. Luck skips text dice and remains on.
 
-If a one-use conditional part is skipped, it **clears after the targeted character** and tells you privately. For example, `!Rigger tribe 3` followed by a Fire Nation character does not roll an extra d3 or remain armed for a later character. Other players do not consume a targeted setting. A lasting `good`/`bad` part setting stays enabled when its part is skipped.
+## Avatar choices
 
-Luck means higher/lower **numeric roll**, not a judgment about which origin is better. `!Rigger nation good` favors higher nation numbers. `!Rigger stats good` rolls two complete six-die pools and keeps the pool with the higher sum; it does not choose each die independently.
+**Choose the Avatar part in the first menu.** Custom `/roll` settings do not affect `/avatar`, and Avatar settings do not affect `/roll`. Force or shift applies to exactly the part you choose, instead of silently changing IQ. **Whole character** supports good/bad luck on every applicable part.
 
-Bare settings also work on `/avatar`: one-use force/shift affects **IQ first**, then clears; bare lasting good/bad applies to every rolled part. Use a named part when you want to change a later decision. Public messages show the final rolls and categories with no private setting or audit details.
+| Avatar part | Exact forced range | Preset choices |
+|---|---|---|
+| IQ | 1–20 | Enter value |
+| Six stats | Total 6–120 | Enter value; 120 gives six 20s |
+| Nation | 1–100 | Fire Nation, Water Tribes, Earth Kingdom, Nomad |
+| Water tribe | 1–3 | Southern, Northern, Swamp |
+| Fire family | 1–100 | Civilian, Military, High ranking, Royal |
+| Earth village | 1–20 | Under Fire Nation control, Not under control |
+| Bending check | 1–100 | Bender (61), Non-bender (60) |
+| Nomad element | 1–3 | Fire, Water, Earth |
+| Non-bender combat | 1–100 | Sword, Bow, Fan, Fists, Pressure point |
 
-Public roll replies contain only the dice result. The prefix is not registered as a slash command and there is no player-facing admin help. Anyone who can read the bot source can inspect its implementation; this is private operation inside Discord, not source-code secrecy. Keep this guide for yourself.
+Presets force a valid representative die value. You can use **Enter value** instead when you want an exact number. The resulting number determines subsequent branches. For example, choosing Water Tribes produces the tribe d3; choosing a bending result of 60 produces non-bender combat.
+
+The **element d3 runs only when the final nation is Nomad and the final bending check is above 60**. A non-Nomad bender receives their nation's element automatically. A Nomad at 60 or below receives combat style instead. No extra bending check or Air bending is added. Water characters still roll their separate origin tribe d3 regardless of bending.
+
+If a one-use conditional part is absent from the selected player's character, that setting clears after the character and explains the skipped part privately. It cannot invent an extra tribe, family, village, element, or combat roll. A lasting luck setting stays enabled when its part is skipped.
+
+## Status and restarts
+
+The panel refreshes after rolls and shows the **Last affected roll** privately. Force/shift/text-face settings clear after one use. Saved settings survive Railway redeploys, and repeated deliveries do not rearm or consume them twice.
+
+Panels close after ten minutes of inactivity, when reopened, or when the bot restarts. **A closed panel does not turn off a saved setting.** DM `!rigger` to open a fresh panel. Old buttons and old forms cannot change settings after the panel closes. Settings from older version-3 releases are preserved; the panel labels unrestricted old rules as legacy. New settings always have an explicit player and command scope.
+
+Public results contain only the dice and outcome. The panel is absent from slash menus. Keep this guide private; source-code readers can still inspect how the bot works.

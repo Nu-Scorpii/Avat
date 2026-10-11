@@ -38,7 +38,44 @@ COMMAND = re.compile(r'!rigger(?:\s|$)', re.IGNORECASE)
 
 
 def empty_setting():
-    return {'mode': 'off', 'value': None, 'target': None, 'part': None, 'last': None}
+    return {'mode': 'off', 'value': None, 'target': None, 'part': None, 'scope': 'roll', 'last': None}
+
+
+def player_id(value):
+    """Accept a copied user ID or mention without depending on a guild cache."""
+    match = TARGET.fullmatch(str(value).strip())
+    require(match and 0 < int(match[1] or match[2]) < 2**64,
+            'Paste a Discord user ID or mention. Right-click the player and choose Copy User ID.')
+    return str(int(match[1] or match[2]))
+
+
+def panel_setting(mode, value=None, target=None, *, scope='roll', part=None):
+    """Validate a panel draft before changing the active setting."""
+    require(mode in ('off', 'force', 'shift', 'good', 'bad', 'face'), 'Choose a control mode.')
+    if mode == 'off':
+        return empty_setting()
+    require(scope in ('roll', 'avatar'), 'Choose /roll or an Avatar roll.')
+    require(part is None or part in PART_DICE, 'Choose an Avatar roll.')
+    require(scope != 'roll' or part is None, 'Avatar parts only work on /avatar.')
+    require(scope != 'avatar' or part is not None or mode in ('good', 'bad'),
+            'Whole-character controls support luck. Choose a specific Avatar part to force or shift it.')
+    target = None if target is None else player_id(target)
+    if mode in ('force', 'shift'):
+        require(isinstance(value, (str, int)) and not isinstance(value, bool)
+                and len(str(value)) <= 30 and NUMBER.fullmatch(str(value).strip()),
+                'Enter a whole number using Enter value.')
+        value = int(str(value).strip())
+        require(abs(value) <= MAX_VALUE, 'Use a value within ±200 billion.')
+        if part is not None and mode == 'force':
+            low, high = PART_LIMITS[part]
+            require(low <= value <= high, f'For {part}, choose a value from {low} to {high}.')
+    elif mode == 'face':
+        require(scope == 'roll', 'Text faces only work with /roll custom dice.')
+        require(isinstance(value, str) and 1 <= len(value) <= 40 and not any(ord(c) < 32 for c in value),
+                'Enter the exact text face, using 1–40 characters.')
+    else:
+        value = None
+    return {'mode': mode, 'value': value, 'target': target, 'part': part, 'scope': scope, 'last': None}
 
 
 def parse_command(content):
@@ -93,7 +130,8 @@ def parse_command(content):
         match = TARGET.fullmatch(args[0])
         require(match and 0 < int(match[1] or match[2]) < 2**64, 'The target must be @User or a positive Discord user ID.')
         target = str(int(match[1] or match[2]))
-    return 'set', {'mode': mode, 'value': value, 'target': target, 'part': part, 'last': None}
+    return 'set', {'mode': mode, 'value': value, 'target': target, 'part': part,
+                   'scope': 'avatar' if part else 'all', 'last': None}
 
 
 def describe(setting):
@@ -102,5 +140,7 @@ def describe(setting):
         return 'Rigger is off. Rolls are normal.'
     label = {'force': f'Next final total: {value}', 'shift': f'Next total shift: {value:+d}' if mode == 'shift' else '',
              'face': f'Next text face: {value}', 'good': 'Good luck until switched off', 'bad': 'Bad luck until switched off'}[mode]
-    scope = f"\nAvatar part: {setting['part']} only." if setting.get('part') else ''
+    scope = (f"\nRoll: /avatar {setting['part']} only." if setting.get('part') else
+             '\nRoll: all /avatar parts.' if setting.get('scope') == 'avatar' else
+             '\nRoll: /roll only.' if setting.get('scope') == 'roll' else '\nRoll: /roll and /avatar (legacy setting).')
     return label + scope + '\nTarget: ' + (f"user {setting['target']} in every server." if setting['target'] else 'anyone in any server.')

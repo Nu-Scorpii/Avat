@@ -43,8 +43,12 @@ class Store:
             state = json.loads(row['state'])
             mode, value, target = state['mode'], state['value'], state['target']
             part = state.get('part')
+            scope = state.get('scope', 'avatar' if part else 'all')
             assert mode in ('off', 'good', 'bad', 'force', 'shift', 'face')
+            assert scope in ('roll', 'avatar', 'all')
             assert part is None or isinstance(part, str) and part in PART_DICE and mode not in ('off', 'face')
+            assert scope != 'roll' or part is None
+            assert scope != 'avatar' or part is not None or mode in ('off', 'good', 'bad')
             assert target is None or isinstance(target, str) and target.isdecimal() and 0 < int(target) < 2**64
             if mode in ('force', 'shift'):
                 assert type(value) is int and abs(value) <= MAX_VALUE
@@ -55,7 +59,7 @@ class Store:
             else:
                 assert value is None
             assert state.get('last') is None or isinstance(state['last'], str) and len(state['last']) <= 1000
-            return {**empty_setting(), **{key: state[key] for key in empty_setting() if key in state}}
+            return {**empty_setting(), **{key: state[key] for key in empty_setting() if key in state}, 'scope': scope}
         except (ValueError, TypeError, KeyError, AssertionError):
             return empty_setting()
 

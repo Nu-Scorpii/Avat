@@ -1,11 +1,13 @@
-# Validation · 3.1.0
+# Validation · 3.2.0
 
-231 automated tests pass on Python 3.12, including all 139 previous tests and 92 new Avatar tests. Runtime dependency compatibility and the source/bundle command checks are verified during release.
+273 automated tests pass on Python 3.12. Source and bundled startup checks validate the real Discord command tree: `/roll` and `/avatar` only. Runtime dependency compatibility and the four-file Railway package are checked during release.
 
-Avatar tests cover every nation boundary, all three tribes, Fire family boundaries, Earth village control, the inclusive 60 bending threshold, nation-specific elements, every Nomad element, and all combat style boundaries. They check IQ, six stat values in order, and that only applicable dice are drawn. No Air element is available.
+Private panel tests cover lower/upper case `!rigger`, owner DM access, server and non-owner rejection, button/select/modal authorization, independent engine guards, draft versus active settings, verified target selection, targeted non-owner Avatar rolls across servers, default owner targeting, command scopes, duplicate Apply, persistence, reopening, stale forms, timeout, private status refresh, and real Discord component/modal serialization within limits.
 
-Creator tests cover direct part controls, optional Avatar spelling, force ranges, shifts, lasting luck, full-pool stats totals, modified outcomes changing subsequent branches, scoped controls ignoring ordinary rolls, cross-server player targeting, skipped conditional parts, duplicate character deliveries, request collisions, persistence, preserved 3.0 settings, and atomic rollback after a failed write. Existing custom dice, exact forcing, weighted/text faces, bonuses, keep-high/low, and creator authorization regression tests still pass.
+Avatar boundary tests cover every nation, family, tribe, village, and combat range, plus IQ and six individual stats. Bending values 59, 60, and 61 are checked for all four nations. A value of 60 is non-bender. Only a final Nomad with bending above 60 rolls the element d3; force and luck changes drive the subsequent branch, and no inapplicable die is drawn. No Air element is available.
 
-Discord transport tests serialize the actual two-command tree (`/roll`, `/avatar`), retain minimal intents and the Gateway dispatcher, remove obsolete server commands, acknowledge before database work, keep private state and notices out of public replies, escape mentions, obey message-size limits, and reject slash commands in DMs without consuming a setting.
+Existing regressions cover custom numeric and weighted/text faces, exact totals, signed arithmetic, bonuses, keep-high/low, unreachable results, bounded searches, scoped controls, skipped parts, creator-only mutation, request collisions, complete-character receipts, preserved version-3 settings, bounded caches, and atomic rollback after a failed write.
 
-Source and `bot.pyz --check` validate without credentials or Discord login. Deployment tests check the exact runtime bundle and Railway persistent-volume paths. Live Railway startup and command registration are checked separately during deployment. Automated Discord transport tests use mocked interactions; they do not send test messages to players.
+Discord transport tests retain minimal intents and the normal Gateway dispatcher, synchronize the two public commands, clear obsolete server commands, defer before bounded/database work, keep private controls out of public results, escape mentions, obey message-size limits, and reject slash commands in DMs without consuming controls.
+
+The tests use deterministic dice and mocked Discord transport. They do not send game messages to players or prove a live server installation. Live Railway startup is verified separately after deployment. Opening and operating the panel on Discord requires the correct bot installation, creator user ID, and permission to DM the bot.

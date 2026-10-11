@@ -2,7 +2,7 @@
 
 import json
 from .avatar import create_character
-from .controls import COMMAND, HELP, describe, empty_setting, parse_command
+from .controls import COMMAND, HELP, describe, empty_setting, panel_setting, parse_command
 from .dice import RNG, prepare
 from .solver import Unavailable, force_face, force_total
 from .errors import RollError, require
@@ -12,6 +12,25 @@ class DiceEngine:
     def __init__(self, store, owner_id, rng=RNG):
         require(type(owner_id) is int and owner_id > 0, 'BOT_OWNER_ID must be your Discord user ID.')
         self.store, self.owner_id, self.rng = store, owner_id, rng
+
+    def control_status(self, author_id, *, is_dm):
+        require(is_dm and author_id == self.owner_id, 'These controls are private to the bot creator.')
+        return self.store.setting(self.owner_id)
+
+    def configure(self, author_id, *, is_dm, mode, value=None, target=None,
+                  scope='roll', part=None, request_id=None):
+        """Only the owner configures controls; any selected player can receive them."""
+        require(is_dm and author_id == self.owner_id, 'These controls are private to the bot creator.')
+        new = panel_setting(mode, value, self.owner_id if target is None else target, scope=scope, part=part)
+        signature = json.dumps([author_id, new], sort_keys=True, ensure_ascii=False)
+        with self.store.transaction():
+            cached = self.store.receipt('panel', request_id, signature)
+            if cached is not None:
+                return cached
+            new['last'] = self.store.setting(self.owner_id)['last']
+            self.store.save_setting(self.owner_id, new)
+            self.store.remember('panel', request_id, signature, new)
+            return new
 
     def private_message(self, author_id, content, *, is_dm, request_id=None):
         if not is_dm or author_id != self.owner_id or not isinstance(content, str) or not COMMAND.match(content):
@@ -48,7 +67,9 @@ class DiceEngine:
         natural = plan.roll(self.rng)
         result, notice = natural, None
         mode = setting['mode']
+        scope = setting.get('scope', 'all')
         applies = (mode != 'off' and (setting['target'] is None or setting['target'] == str(user_id))
+                   and (scope == 'all' or scope == ('avatar' if part is not None else 'roll'))
                    and (setting['part'] is None or setting['part'] == part))
         if not applies:
             return result, setting, notice
@@ -61,7 +82,7 @@ class DiceEngine:
                 result = force_face(plan, natural, setting['value'])
             else:
                 if natural['total'] is None:
-                    raise Unavailable('text dice have no numeric total; use !Rigger face for a text label')
+                    raise Unavailable('text dice have no numeric total; choose Text face in the private panel')
                 target = setting['value'] if mode == 'force' else natural['total'] + setting['value']
                 result = force_total(plan, natural, target)
         except Unavailable as exc:

@@ -124,7 +124,9 @@ def test_only_creator_dm_receives_command_reply(make_engine):
         event.author.id = 1
         await bot.on_message(event)
         channel.send.assert_awaited_once()
-        assert engine.store.setting(1)['mode'] == 'force'
+        assert channel.send.await_args.kwargs['view'] is bot.rigger_panel
+        assert channel.send.await_args.kwargs['embed'].title == '🎲 Rigger'
+        assert engine.store.setting(1)['mode'] == 'off'
         await bot.close()
     asyncio.run(check())
 

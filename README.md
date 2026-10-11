@@ -1,4 +1,4 @@
-# Simple Discord Dice Bot · 3.1.0
+# Simple Discord Dice Bot · 3.2.0
 
 Two public commands: `/roll` for custom dice and `/avatar` for Avatar character creation. Creator controls work privately in DMs. No character tracking, battles, attendance, or saved-die menus.
 
@@ -51,7 +51,7 @@ Run `/avatar` in a server. There are no options to fill in. The bot rolls the wh
 1. **IQ:** 1d20.
 2. **Stats:** six separate results from 6d20, in order. Assign your own stat names; the bot does not invent them.
 3. **Nation:** 1d100, followed by its applicable origin detail.
-4. **Bending:** 1d100. **60–100** means bending; **1–59** means non-bender.
+4. **Bending:** 1d100. **61–100** means bending; **1–60** means non-bender.
 5. A Nomad bender rolls an element; a non-bender rolls a combat style.
 
 | Nation roll | Origin | Extra origin roll |
@@ -63,7 +63,7 @@ Run `/avatar` in a server. There are no options to fill in. The bot rolls the wh
 
 Fire Nation families use **1–49 Civilian, 50–79 Military, 80–94 High ranking, 95–100 Royal**. The supplied ranges overlapped at 50, 80, and 95; this resolves those boundaries in favor of the higher tier.
 
-A Fire Nation bender gets Fire bending, a Water Tribes bender gets Water bending, and an Earth Kingdom bender gets Earth bending. A Nomad bender rolls **1d3: 1 Fire, 2 Water, 3 Earth**. Nomad is an origin, not an Air Nomad. **There is no Air bending.** Every character makes one bending check; there is no second chance check for an element.
+A Fire Nation bender gets Fire bending, a Water Tribes bender gets Water bending, and an Earth Kingdom bender gets Earth bending. **Only a Nomad whose final bending check is above 60** rolls **1d3: 1 Fire, 2 Water, 3 Earth**. A result of exactly 60 is a non-bender and rolls combat style instead. Nomad is an origin, not an Air Nomad. **There is no Air bending.** Every character makes one bending check; there is no second chance check for an element.
 
 Non-benders roll **1d100: 1–20 Sword, 21–40 Bow, 41–60 Fan, 61–80 Fists, 81–100 Pressure point**. The shared endpoint 80 belongs to Fists. Inapplicable dice are never rolled: no tribe outside Water Tribes, no family outside Fire Nation, no village control outside Earth Kingdom, no combat style for benders, and no extra element roll except for Nomad benders.
 
@@ -71,7 +71,13 @@ The message shows the six stat values and each applicable category with its actu
 
 ## Creator
 
-Open the bot's DMs and send `!Rigger help`. Only the user configured as `BOT_OWNER_ID` can use it. The short instructions are in `CREATOR_ONLY.md`. The command is absent from slash-command menus and server messages are ignored. There is one active setting. Version 3.0 settings survive this update; the new Avatar part filter defaults to unrestricted for existing settings. Pre-version-3 controls are never loaded.
+Open the bot's DMs and send **`!rigger`**. A private panel opens with roll, mode, and outcome menus plus **Choose player**, **Enter value**, **Apply**, and **Turn off** buttons. No arguments are needed. `!Rigger` works too. The live bot opens the panel even if you append old arguments; those arguments do not arm a setting.
+
+Only the account configured as `BOT_OWNER_ID` can open the panel, use its buttons, or submit its forms. It never appears in slash menus. Server messages are ignored. Choose the exact Avatar part when modifying `/avatar`; choosing `/roll` affects custom rolls only. Presets include nations, tribes, family tiers, bender/non-bender, elements, and combat styles. Whole-character Avatar controls support good/bad luck.
+
+The draft defaults to targeting **you**. Use **Choose player** to paste another player's user ID or mention; the bot checks that it is a real player account. The target follows that player across every server and never depends on a server ID or cached server membership. Other players cannot configure Rigger, but the selected player's rolls can receive your setting. Nothing is armed until **Apply**. There is one active setting; applying replaces it. Force, shift, and text-face settings are used once; luck lasts until turned off.
+
+The panel updates its private active status after rolls. Panels close after ten minutes of inactivity or when you reopen them; the saved setting stays active. After a restart, DM `!rigger` for a fresh panel. Older version-3 settings remain active until used, replaced, or turned off; an unrestricted old rule is identified as legacy in the panel. New panel settings always have an explicit player and command scope. See `CREATOR_ONLY.md` for the short guide.
 
 ## Railway
 
@@ -98,7 +104,7 @@ Railway supplies `RAILWAY_VOLUME_MOUNT_PATH`; do not set it manually. The databa
 
 The bot preserves old campaign tables on the volume without loading them. Current settings and the last 1,000 command receipts use separate tables. Changes and one-use consumption commit together. Redeploys preserve the new setting. A repeated recent interaction returns the same roll or complete Avatar character and does not consume a new setting. All rolls and control changes for one Avatar character commit together.
 
-Install the Discord application with `bot` and `applications.commands` scopes. Permit View Channel and Send Messages in the roll channel and let players use application commands. Leave the Interactions Endpoint URL empty. No privileged Gateway intents or Administrator permission are needed. Creator controls and notices require that your account can DM the bot.
+Install the Discord application **to your server** with `bot` and `applications.commands` scopes; adding it only to your account does not put the bot in the server. Permit View Channel and Send Messages in the roll channel and let players use application commands. Leave the Interactions Endpoint URL empty. No privileged Gateway intents or Administrator permission are needed. Creator controls and notices require that your account can DM the bot. A startup log showing **0 server(s)** means the connected bot was not in any servers when it connected: check its bot ID against the bot in your server and use the correct server install.
 
 ## Local editing and checks
 
@@ -119,7 +125,9 @@ For local play, copy `.env.example` to `.env`, fill in your token and creator ID
 - Bot online but `/roll` or `/avatar` missing: check its server installation, `applications.commands` scope, and channel permissions; refresh Discord's command menu.
 - Old commands still visible: refresh Discord. Runtime logs report whether old server commands could be cleared; a reconnect retries failed cleanup.
 - Volume error: attach the volume to this service and place the database under its real mount, then redeploy. Retain the original database file when updating.
-- Private control not responding: DM the bot from the exact account identified by `BOT_OWNER_ID`. Use `!Rigger help` and allow DMs from the bot.
-- A forced custom result did not apply: `!Rigger status` gives the private explanation. The regular roll remains valid; one-use settings clear after that attempt.
+- Private panel not opening: DM `!rigger` from the exact account identified by `BOT_OWNER_ID`; allow DMs from the bot. This variable must contain your user ID, not the application ID. There is no public `/rigger` command.
+- Old or expired buttons: DM `!rigger` again. Reopening does not arm, clear, or rearm a saved setting.
+- A setting did not apply: check the panel's **Active setting**, target user ID, and selected roll. Press **Apply** after editing. `/roll` settings never affect `/avatar`; use the Avatar part menu.
+- A forced result was impossible or its Avatar part was skipped: the regular roll remains valid and the one-use setting clears. The panel's **Last affected roll** and your private notice explain why.
 
 Official API reference: https://discordpy.readthedocs.io/en/stable/interactions/api.html

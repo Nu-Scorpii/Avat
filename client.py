@@ -5,8 +5,10 @@ import discord
 from discord import app_commands
 from . import __version__
 from .dice import MAX_SIDES, prepare
+from .controls import COMMAND
 from .display import avatar_messages, private_messages, roll_messages, safe
 from .errors import RollError
+from .rigger_ui import RiggerPanel
 
 log = logging.getLogger(__name__)
 NO_MENTIONS = discord.AllowedMentions.none()
@@ -22,6 +24,8 @@ class DiceBot(discord.Client):
         self.engine = engine
         self.tree = app_commands.CommandTree(self)
         self.cleaned_guilds = set()
+        self.rigger_panel = None
+        self.rigger_message_id = None
         self.tree.on_error = self.command_error
 
         @self.tree.command(name='roll', description='Roll any dice, with optional bonus points or custom faces.')
@@ -66,27 +70,30 @@ class DiceBot(discord.Client):
 
     async def on_guild_join(self, guild):
         await self.clean_guild_commands(guild)
+        log.info('Dice bot joined server ID %s; %s server(s).', guild.id, len(self.guilds))
 
     async def on_guild_remove(self, guild):
         self.cleaned_guilds.discard(guild.id)
 
     async def on_message(self, message):
-        if message.author.bot:
+        if (message.author.bot or message.author.id != self.engine.owner_id
+                or not isinstance(message.channel, discord.DMChannel)
+                or not COMMAND.match(message.content)):
+            return
+        if message.id == self.rigger_message_id:
             return
         try:
-            reply = self.engine.private_message(message.author.id, message.content,
-                is_dm=isinstance(message.channel, discord.DMChannel), request_id=message.id)
+            if self.rigger_panel is not None:
+                await self.rigger_panel.expire()
+            panel = RiggerPanel(self)
+            panel.message = await message.channel.send(embed=panel.embed(), view=panel, allowed_mentions=NO_MENTIONS)
+            self.rigger_panel, self.rigger_message_id = panel, message.id
         except Exception as exc:
-            log.error('Creator command failed: %s', type(exc).__name__)
-            if message.author.id != self.engine.owner_id or not isinstance(message.channel, discord.DMChannel):
-                return
-            reply = 'Could not save the setting. Try !Rigger status before sending it again.'
-        if reply is not None:
+            log.error('Creator panel failed: %s.', type(exc).__name__)
             try:
-                for part in private_messages(reply):
-                    await message.channel.send(part, allowed_mentions=NO_MENTIONS)
-            except discord.HTTPException as exc:
-                log.warning('Creator reply could not be delivered: %s.', type(exc).__name__)
+                await message.channel.send('Could not open the panel. Try DMing !rigger again.', allowed_mentions=NO_MENTIONS)
+            except discord.HTTPException:
+                pass
 
     async def error(self, interaction, text):
         message = '⚠️ ' + safe(text)
@@ -138,6 +145,11 @@ class DiceBot(discord.Client):
             await interaction.followup.send(part, allowed_mentions=NO_MENTIONS)
         if outcome['notice'] and not outcome['replayed']:
             await self.notify_creator(outcome['notice'])
+        if not outcome['replayed'] and self.rigger_panel is not None:
+            try:
+                await self.rigger_panel.refresh_message()
+            except discord.HTTPException as exc:
+                log.warning('Private panel refresh failed: %s.', type(exc).__name__)
 
     async def notify_creator(self, notice):
         try:
@@ -148,6 +160,8 @@ class DiceBot(discord.Client):
             log.warning('Creator notice could not be delivered: %s; the explanation is saved for creator status.', type(exc).__name__)
 
     async def close(self):
+        if self.rigger_panel is not None:
+            self.rigger_panel.stop()
         await super().close()
         if self.engine.store is not None:
             self.engine.store.close()

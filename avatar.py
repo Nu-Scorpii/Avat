@@ -38,7 +38,7 @@ def create_character(draw):
                                'Military family' if family >= 50 else 'Civilian family')
     elif nation == 'Earth Kingdom':
         character['fire_control'] = take('control') <= 15
-    character['bender'] = take('bending') >= 60
+    character['bender'] = take('bending') > 60
     if character['bender']:
         element = ELEMENTS[take('element') - 1] if nation == 'Nomad' else ELEMENTS[NATIONS.index(nation)]
         character['bending'] = element + ' bending'

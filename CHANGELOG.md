@@ -1,3 +1,12 @@
+# Version 3.6.0
+
+- Rebuilt /wallet as an unrestricted player balance/history command with a simple dropdown, History, and Refresh. New servers get an empty Main wallet automatically.
+- Moved all money changes into moderator-only /wallet-add, /wallet-remove, and /wallet-transfer commands with actual member pickers, wallet autocomplete, optional reasons, and private confirmations. The creator does not bypass moderator checks.
+- Added atomic same-wallet player transfers, conserved balances, linked deal histories, durable duplicate protection, current-member validation, overdraft/limit checks, and rollback of both sides on failure.
+- Added creator-only /wallet-manage for wallet naming and creation. Multi-wallet money commands require an explicit wallet choice.
+- Preserved v3.5 balances, old history, existing receipts, and all Avatar/Rigger behavior. Failed confirmation delivery never invites an automatic second payment.
+- Verified 487 tests, including 38 transfer/command tests, two simultaneous database writers, migration, permissions, UI payloads, and existing game regressions.
+
 # Version 3.5.0
 
 - Added /wallet with private teal balance cards, named-wallet selection, member selection for moderators, add/remove forms, recent activity, paged history, My balance, and Refresh.

@@ -17,10 +17,10 @@ def interaction(request=900):
                            response=response, followup=followup, extras={}, edit_original_response=AsyncMock())
 
 
-def test_three_slash_commands_and_minimal_intents(make_engine):
+def test_seven_slash_commands_and_minimal_intents(make_engine):
     async def check():
         bot = DiceBot(make_engine())
-        assert [command.name for command in bot.tree.get_commands()] == ['roll', 'avatar', 'wallet']
+        assert [command.name for command in bot.tree.get_commands()] == ['roll', 'avatar', 'wallet', 'wallet-add', 'wallet-remove', 'wallet-transfer', 'wallet-manage']
         payload = bot.tree.get_commands()[0].to_dict(bot.tree)
         assert [option['name'] for option in payload['options']] == ['dice', 'bonus', 'faces', 'keep']
         assert bot.tree.get_commands()[1].to_dict(bot.tree).get('options', []) == []

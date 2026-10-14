@@ -44,7 +44,17 @@ class Store:
                 owner TEXT NOT NULL, request TEXT NOT NULL,
                 signature TEXT NOT NULL, result TEXT NOT NULL,
                 PRIMARY KEY(owner, request));
+            CREATE TABLE IF NOT EXISTS currency_transfers_v1 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, wallet INTEGER NOT NULL,
+                sender TEXT NOT NULL, receiver TEXT NOT NULL, actor TEXT NOT NULL,
+                amount INTEGER NOT NULL, reason TEXT NOT NULL,
+                created_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s', 'now') AS INTEGER)));
         ''')
+        # Preserve existing wallet data; serialise migration across connections.
+        with self.transaction():
+            columns = {row['name'] for row in self.db.execute('PRAGMA table_info(currency_ledger_v1)')}
+            if 'transfer_id' not in columns:
+                self.db.execute('ALTER TABLE currency_ledger_v1 ADD COLUMN transfer_id INTEGER')
 
     @contextmanager
     def transaction(self):

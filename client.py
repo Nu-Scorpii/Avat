@@ -9,8 +9,8 @@ from .controls import COMMAND
 from .display import avatar_messages, private_messages, roll_messages, safe
 from .errors import RollError
 from .rigger_ui import RiggerPanel
-from .wallets import Wallets
-from .wallet_ui import WalletPanel
+from .wallets import Wallets, MAX_MONEY, moderator
+from .wallet_ui import WalletPanel, member, shown, TEAL
 
 log = logging.getLogger(__name__)
 NO_MENTIONS = discord.AllowedMentions.none()
@@ -50,14 +50,56 @@ class DiceBot(discord.Client):
         async def avatar(interaction: discord.Interaction):
             await self.run_avatar(interaction)
 
-        @self.tree.command(name='wallet', description='View your server wallets, balances, and currency history.')
+        @self.tree.command(name='wallet', description='Everyone: check your balance and deal history in this server.')
         @app_commands.guild_only()
-        async def wallet(interaction: discord.Interaction):
-            await self.run_wallet(interaction)
+        @app_commands.describe(wallet='Optional: choose a wallet. You can also change it in the balance panel.')
+        async def wallet(interaction: discord.Interaction, wallet: str | None = None):
+            await self.run_wallet(interaction, wallet=wallet)
+
+        @self.tree.command(name='wallet-add', description='Moderators: add money to a player’s wallet.')
+        @app_commands.guild_only()
+        @app_commands.describe(player='Player receiving the money.', amount='Positive whole amount to add.',
+                               wallet='Choose the currency wallet; required if there are several.', reason='Why you are adding money.')
+        async def wallet_add(interaction: discord.Interaction, player: discord.Member,
+                             amount: app_commands.Range[int, 1, MAX_MONEY], wallet: str | None = None,
+                             reason: str = 'Session reward'):
+            await self.run_wallet_change(interaction, player, amount, wallet=wallet, reason=reason)
+
+        @self.tree.command(name='wallet-remove', description='Moderators: remove money from a player’s wallet.')
+        @app_commands.guild_only()
+        @app_commands.describe(player='Player paying the money.', amount='Positive whole amount to remove.',
+                               wallet='Choose the currency wallet; required if there are several.', reason='Why you are removing money.')
+        async def wallet_remove(interaction: discord.Interaction, player: discord.Member,
+                                amount: app_commands.Range[int, 1, MAX_MONEY], wallet: str | None = None,
+                                reason: str = 'Session expense'):
+            await self.run_wallet_change(interaction, player, amount, wallet=wallet, reason=reason, remove=True)
+
+        @self.tree.command(name='wallet-transfer', description='Moderators: transfer money between two players for a session deal.')
+        @app_commands.guild_only()
+        @app_commands.describe(sender='Player paying.', receiver='Player receiving payment.', amount='Positive whole amount to transfer.',
+                               wallet='Choose the shared currency wallet; required if there are several.', reason='What the deal was for.')
+        async def wallet_transfer(interaction: discord.Interaction, sender: discord.Member, receiver: discord.Member,
+                                  amount: app_commands.Range[int, 1, MAX_MONEY], wallet: str | None = None,
+                                  reason: str = 'Session deal'):
+            await self.run_wallet_transfer(interaction, sender, receiver, amount, wallet=wallet, reason=reason)
+
+        @self.tree.command(name='wallet-manage', description='Creator: name wallets and currency labels for this server.')
+        @app_commands.guild_only()
+        async def wallet_manage(interaction: discord.Interaction):
+            await self.run_wallet(interaction, manage=True)
+
+        async def wallet_suggestions(interaction: discord.Interaction, current: str):
+            if not interaction.guild_id:
+                return []
+            return [app_commands.Choice(name=w['name'], value=f"wallet:{w['id']}")
+                    for w in self.wallets.list(interaction.guild_id) if current.casefold() in w['name'].casefold()][:25]
+
+        for command in (wallet, wallet_add, wallet_remove, wallet_transfer):
+            command.autocomplete('wallet')(wallet_suggestions)
 
     async def setup_hook(self):
         synced = await self.tree.sync()
-        log.info('Registered %s slash commands globally (v%s); /roll, /avatar, and /wallet ready.', len(synced), __version__)
+        log.info('Registered %s slash commands globally (v%s); /roll, /avatar, /wallet and wallet management ready.', len(synced), __version__)
 
     async def clean_guild_commands(self, guild):
         if guild.id in self.cleaned_guilds:
@@ -146,13 +188,82 @@ class DiceBot(discord.Client):
         parts = avatar_messages(outcome['character'], interaction.user.display_name)
         await self.deliver_roll(interaction, parts, outcome)
 
-    async def run_wallet(self, interaction):
-        if not interaction.guild_id or interaction.guild is None:
+    async def run_wallet(self, interaction, *, wallet=None, manage=False):
+        if not interaction.guild_id or interaction.guild is None or interaction.guild.id != interaction.guild_id:
             await self.error(interaction, 'Use /wallet in a server.')
             return
+        if manage and interaction.user.id != self.engine.owner_id:
+            await self.error(interaction, 'Only the bot creator can name wallets. Use /wallet to check your balance.')
+            return
         await interaction.response.defer(thinking=True, ephemeral=True)
-        panel = WalletPanel(self, interaction)
-        panel.message = await interaction.edit_original_response(embed=panel.embed(), view=panel, allowed_mentions=NO_MENTIONS)
+        try:
+            panel = WalletPanel(self, interaction, wallet=wallet, manage=manage)
+            panel.message = await interaction.edit_original_response(embed=panel.embed(), view=panel, allowed_mentions=NO_MENTIONS)
+        except RollError as exc:
+            await interaction.edit_original_response(content='⚠️ ' + safe(exc), allowed_mentions=NO_MENTIONS)
+
+    async def wallet_moderator(self, interaction):
+        if not interaction.guild_id or interaction.guild is None or interaction.guild.id != interaction.guild_id:
+            await self.error(interaction, 'Use wallet commands in a server.')
+            return False
+        if not moderator(interaction):
+            await self.error(interaction, 'Only server moderators can change money or record transfers. Use /wallet to check your balance.')
+            return False
+        return True
+
+    async def run_wallet_change(self, interaction, player, value, *, wallet=None, reason='Session reward', remove=False):
+        if not await self.wallet_moderator(interaction):
+            return
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        try:
+            selected = self.wallets.resolve(interaction.guild_id, wallet)
+            target = await member(interaction, player.id)
+            result = self.wallets.change(interaction.user.id, interaction.guild_id, selected['id'], target.id,
+                value, reason, remove=remove, is_moderator=moderator(interaction), request_id=interaction.id)
+            embed = discord.Embed(title='✅ Money ' + ('removed' if remove else 'added'), colour=TEAL,
+                description=f"**{result['delta']:+,} {safe(result['wallet']['currency'])}** · {shown(target.display_name)}")
+            embed.add_field(name='New balance', value=f"{result['balance']:,} {safe(result['wallet']['currency'])}", inline=True)
+            embed.add_field(name='Wallet', value=safe(result['wallet']['name']), inline=True)
+            embed.add_field(name='Reason', value=safe(reason), inline=False)
+            embed.set_footer(text='Already saved · no duplicate change' if result['replayed'] else 'Saved in the player’s history')
+            await self.wallet_confirmation(interaction, embed)
+        except RollError as exc:
+            await interaction.edit_original_response(content='⚠️ ' + safe(exc), allowed_mentions=NO_MENTIONS)
+
+    async def run_wallet_transfer(self, interaction, sender, receiver, value, *, wallet=None, reason='Session deal'):
+        if not await self.wallet_moderator(interaction):
+            return
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        try:
+            selected = self.wallets.resolve(interaction.guild_id, wallet)
+            if sender.id == receiver.id:
+                raise RollError('Choose two different players for a transfer.')
+            source = await member(interaction, sender.id)
+            destination = await member(interaction, receiver.id)
+            result = self.wallets.transfer(interaction.user.id, interaction.guild_id, selected['id'], source.id,
+                destination.id, value, reason, is_moderator=moderator(interaction), request_id=interaction.id)
+            currency = safe(result['wallet']['currency'])
+            embed = discord.Embed(title='💸 Transfer complete', colour=TEAL,
+                description=f"**{result['amount']:,} {currency}** · {safe(result['wallet']['name'])}")
+            embed.add_field(name='From · ' + shown(source.display_name), value=f"Balance: **{result['sender_balance']:,}**", inline=True)
+            embed.add_field(name='To · ' + shown(destination.display_name), value=f"Balance: **{result['receiver_balance']:,}**", inline=True)
+            embed.add_field(name='Deal', value=safe(reason), inline=False)
+            embed.set_footer(text=f"Deal #{result['transfer_id']} · {'Already saved' if result['replayed'] else 'Recorded in both players’ histories'}")
+            await self.wallet_confirmation(interaction, embed)
+        except RollError as exc:
+            await interaction.edit_original_response(content='⚠️ ' + safe(exc), allowed_mentions=NO_MENTIONS)
+
+    async def wallet_confirmation(self, interaction, embed):
+        try:
+            await interaction.edit_original_response(embed=embed, allowed_mentions=NO_MENTIONS)
+        except discord.HTTPException as exc:
+            # A display failure must never invite a second award or transfer.
+            log.warning('Saved currency change; confirmation failed: %s.', type(exc).__name__)
+            try:
+                await interaction.followup.send('The money change was saved, but its confirmation could not be displayed. '
+                    'Check /wallet before submitting it again.', ephemeral=True, allowed_mentions=NO_MENTIONS)
+            except discord.HTTPException:
+                pass
 
     async def deliver_roll(self, interaction, parts, outcome):
         await interaction.edit_original_response(content=parts[0], allowed_mentions=NO_MENTIONS)

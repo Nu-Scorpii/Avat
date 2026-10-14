@@ -23,7 +23,7 @@ def test_release_contains_only_minimal_runtime_and_runs_offline(tmp_path):
         assert archive.testzip() is None
     result = subprocess.run([sys.executable, str(artifact), '--check'], cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
-    assert 'Validated 3 slash commands: /roll, /avatar, /wallet' in result.stdout
+    assert 'Validated 7 slash commands: /roll, /avatar, /wallet' in result.stdout
 
 
 def test_docker_uses_single_runtime_file_and_validates_it():

@@ -1,6 +1,6 @@
-# Simple Discord Dice Bot · 3.4.0
+# Simple Discord Dice Bot · 3.5.0
 
-Two public commands: `/roll` for custom dice and `/avatar` for Avatar character creation. Creator controls work privately in DMs. No character tracking, battles, attendance, or saved-die menus.
+Three public commands: `/roll` for custom dice, `/avatar` for Avatar character creation, and `/wallet` for server currency. Creator roll controls work privately in DMs.
 
 ## Players: `/roll`
 
@@ -69,6 +69,20 @@ Non-benders roll **1d100: 1–20 Sword, 21–40 Bow, 41–60 Fan, 61–80 Fists,
 
 The message shows the six stat values and each applicable category with its actual roll. It is a character creation result, not a saved or tracked character sheet. Repeat `/avatar` only when your GM permits a new character roll.
 
+## Players and moderators: /wallet
+
+Run **`/wallet` in a server** to open a private teal wallet card. Choose a named wallet from the dropdown to see your balance, recent activity, and **History** with Previous/Next pages. **Refresh** reads the latest balance. Every player starts at zero in each wallet. Wallets belong to their server; the same player has independent balances in different wallets and servers.
+
+The **bot creator** opens `/wallet` in each server and uses **New wallet** to choose a name and currency label, such as `Avatar campaign / coins` or `UA / credits`. **Edit wallet** changes these labels while preserving balances and history. Currency labels do not convert or multiply money. Up to **25 wallets per server** are available. Names must be unique within that server; another server can use the same name.
+
+**Only server moderators can add or remove money.** The bot checks actual server permissions: Administrator, Manage Server, Manage Messages, Moderate Members (Timeout Members), Kick Members, or Ban Members. Role names do not grant access. Bot ownership alone does not grant money-editing permission; the creator also needs one of those server permissions. Ordinary players only see their own balances.
+
+Moderators choose a member in the player selector, then **Add money** or **Remove money**. Enter a positive whole amount and a short reason, then submit. The balance card updates immediately. **My balance** switches back to the moderator's own account. Reasons, moderator IDs, dates, signed amounts, and resulting balances are retained in history. Selected users must be current human members of the server. Removing more than the available balance is rejected; balances cannot become negative.
+
+Wallet panels are visible only to the person who opened them. Buttons and forms recheck the viewer, server, moderator permission, selected wallet/player, and timeout. Panels close after ten minutes of inactivity or a restart; use `/wallet` again. Changes on another open panel appear when you press Refresh. Wallets, balances, and history survive Railway redeploys using the existing volume.
+
+Wallet writes are atomic and duplicate submissions cannot award or remove money twice. Currency uses separate tables and durable receipts; Avatar, Rigger, and dice requests never consume, reset, or modify a wallet. `/wallet` does not draw dice or spend rig uses. Money uses whole units only, with a maximum balance of **1 trillion** per player per wallet. This is in-game currency.
+
 ## Creator
 
 Open the bot's DMs and send **`!rigger`**. Choose a player, roll, and change, enter a value or pick a preset, choose **Duration**, then press **Apply**. Enter a number such as `3`, or `permanent`. `!Rigger` works too. No command arguments or server IDs are needed. Appended old arguments open the panel without arming anything.
@@ -114,9 +128,9 @@ For a new service, attach a persistent volume at **`/data`**. Set these variable
 
 Railway supplies `RAILWAY_VOLUME_MOUNT_PATH`; do not set it manually. The database must be inside that mount. A local default is `data/ua.sqlite3`. No server ID is needed; a previous `DISCORD_GUILD_ID` is ignored. The bot replaces the global command list and clears old server-specific commands when it connects. Discord clients may need a refresh before their cached menus update.
 
-The bot preserves old campaign tables on the volume without loading them. Current rigs and the last 1,000 command receipts use separate tables. All dice, rig consumption, and a receipt for one Avatar character commit together. Redeploys preserve saved rigs. A repeated recent interaction returns the same result without consuming or rearming newer rigs.
+The bot preserves old campaign tables on the volume without loading them. Current rigs and the last 1,000 dice receipts use separate tables. All dice, rig consumption, and a receipt for one Avatar character commit together. Wallet balances, history, and durable currency receipts use their own tables. Redeploys preserve rigs and wallets. A repeated recent dice interaction returns the same result without consuming or rearming newer rigs; duplicate currency submissions are remembered independently of the dice cache.
 
-Install the Discord application **to your server** with `bot` and `applications.commands` scopes; adding it only to your account does not put the bot in the server. Permit View Channel and Send Messages in the roll channel and let players use application commands. Leave the Interactions Endpoint URL empty. No privileged Gateway intents or Administrator permission are needed. Creator controls and notices require that your account can DM the bot. A startup log showing **0 server(s)** means the connected bot was not in any servers when it connected: check its bot ID against the bot in your server and use the correct server install.
+Install the Discord application **to your server** with `bot` and `applications.commands` scopes; adding it only to your account does not put the bot in the server. Permit View Channel, Send Messages, and Embed Links for the wallet cards, and let players use application commands. Leave the Interactions Endpoint URL empty. No privileged Gateway intents or Administrator permission are needed. Creator controls and notices require that your account can DM the bot. A startup log showing **0 server(s)** means the connected bot was not in any servers when it connected: check its bot ID against the bot in your server and use the correct server install.
 
 ## Local editing and checks
 
@@ -134,7 +148,9 @@ For local play, copy `.env.example` to `.env`, fill in your token and creator ID
 
 ## Troubleshooting
 
-- Bot online but `/roll` or `/avatar` missing: check its server installation, `applications.commands` scope, and channel permissions; refresh Discord's command menu.
+- Bot online but `/roll`, `/avatar`, or `/wallet` missing: check its server installation, `applications.commands` scope, and channel permissions; refresh Discord's command menu.
+- No wallet yet: the bot creator must open `/wallet` in that server and use New wallet. Server moderators can change balances once a wallet exists.
+- No Add money / Remove money buttons: check your actual server moderation permissions. Being the bot creator or having a role named Mod does not grant these permissions.
 - Old commands still visible: refresh Discord. Runtime logs report whether old server commands could be cleared; a reconnect retries failed cleanup.
 - Volume error: attach the volume to this service and place the database under its real mount, then redeploy. Retain the original database file when updating.
 - Private panel not opening: DM `!rigger` from the exact account identified by `BOT_OWNER_ID`; allow DMs from the bot. This variable must contain your user ID, not the application ID. There is no public `/rigger` command.

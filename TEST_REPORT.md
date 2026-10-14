@@ -1,6 +1,10 @@
-# Validation · 3.4.0
+# Validation · 3.5.0
 
-**390 automated tests pass on Python 3.12**, including 55 new duration tests and the previous percentage, stacking, individual-stat, and active-rig coverage. Source and bundle startup checks validate the real two-command tree: `/roll` and `/avatar`.
+**452 automated tests pass on Python 3.12**, including 62 new wallet tests and all previous Avatar, dice, Rigger, percentage, stat, and duration regressions. Source and bundle startup checks validate the real three-command tree: `/roll`, `/avatar`, and `/wallet`.
+
+Wallet coverage checks creator-only naming, all six accepted moderation permissions, denial even for an unprivileged bot creator, server/player/wallet/creator isolation, positive whole amounts, overdrafts, overflow, label limits and uniqueness, capacity, renaming without losing balances, duplicate additions/removals/creation/renames, durable replay protection independent of the dice cache, restart persistence, ordered history and pagination, two database connections, and rollback after failed receipt writes.
+
+UI tests exercise the actual private slash response, empty and populated balance cards, wallet and member selectors, add/remove forms, history pages, creator buttons, current membership checks, bot-account rejection, stale wallet/player forms, moderator revocation, other-viewer/server denial, form/panel expiry, mention escaping, and real Discord view/modal/embed payload limits with the full 25-wallet list. Integration verifies currency operations draw no dice or consume Avatar rigs, and Avatar rolls never change currency balances.
 
 Duration coverage checks finite and permanent settings for force, shift, good/bad luck, and text faces; independent expiration across servers; one use per multi-die custom roll; complete-character and all-stat luck; mixed per-player durations; all six stat rigs with different counters; persistence across restart; migration of old rigs; explicit replenishment versus duplicate Apply; other-player/scope isolation; invalid input; receipt replays; text/overridden luck; skipped branches; impossible requests; corrupt individual counters; and atomic rollback after receipt failure.
 

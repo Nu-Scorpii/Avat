@@ -1,3 +1,12 @@
+# Version 3.5.0
+
+- Added /wallet with private teal balance cards, named-wallet selection, member selection for moderators, add/remove forms, recent activity, paged history, My balance, and Refresh.
+- Added creator-only creation and editing of up to 25 named wallets per server, with custom currency labels. Each player's balances remain separate per server and wallet; renaming preserves amounts and history.
+- Required real server moderator permissions for every money change, including changes by the bot creator. Rechecked viewer, server, current member, permissions, selected target, and form expiry; ordinary players view only their own balances.
+- Recorded reasons, amounts, moderator IDs, timestamps, and resulting balances. Prevented overdrafts, invalid whole amounts, duplicate awards/removals, and partial database writes.
+- Kept currency tables and durable receipt records separate from dice and Rigger. Existing Avatar mechanics, secret controls, percentages, and rig durations remain unchanged.
+- Verified 452 tests, including 62 new currency, UI, isolation, permission, replay, persistence, rollback, and regression tests. The deployment bundle validates /roll, /avatar, and /wallet.
+
 # Version 3.4.0
 
 - Added Duration to the creator-only DM panel: every rig supports a chosen number of uses or permanent until removed, including force, shift, numeric luck, and text faces.

@@ -23,6 +23,27 @@ class Store:
             CREATE TABLE IF NOT EXISTS dice_receipts_v3 (
                 kind TEXT NOT NULL, request TEXT NOT NULL, signature TEXT NOT NULL, result TEXT NOT NULL,
                 PRIMARY KEY(kind, request));
+            CREATE TABLE IF NOT EXISTS currency_wallets_v1 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner TEXT NOT NULL, guild TEXT NOT NULL,
+                name TEXT NOT NULL, name_key TEXT NOT NULL, currency TEXT NOT NULL,
+                UNIQUE(owner, guild, name_key));
+            CREATE TABLE IF NOT EXISTS currency_balances_v1 (
+                wallet INTEGER NOT NULL, player TEXT NOT NULL,
+                balance INTEGER NOT NULL CHECK(balance >= 0 AND balance <= 1000000000000),
+                PRIMARY KEY(wallet, player));
+            CREATE TABLE IF NOT EXISTS currency_ledger_v1 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                wallet INTEGER NOT NULL, player TEXT NOT NULL, actor TEXT NOT NULL,
+                delta INTEGER NOT NULL, balance_after INTEGER NOT NULL,
+                reason TEXT NOT NULL,
+                created_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s', 'now') AS INTEGER)));
+            CREATE INDEX IF NOT EXISTS currency_ledger_player_v1
+                ON currency_ledger_v1(wallet, player, id DESC);
+            CREATE TABLE IF NOT EXISTS currency_requests_v1 (
+                owner TEXT NOT NULL, request TEXT NOT NULL,
+                signature TEXT NOT NULL, result TEXT NOT NULL,
+                PRIMARY KEY(owner, request));
         ''')
 
     @contextmanager

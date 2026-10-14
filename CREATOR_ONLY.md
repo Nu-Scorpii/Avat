@@ -1,6 +1,8 @@
-# Private Rigger panel · 3.4.0
+# Private Rigger panel · 3.5.0
 
 **DM the bot `!rigger`.** Only the account configured as `BOT_OWNER_ID` can open and use it. `!Rigger` also works. No extra words or server IDs are needed.
+
+For currency, use **`/wallet` in the relevant server**, then **New wallet** or **Edit wallet** to name its wallets and currency labels. These creator buttons are independent of Rigger. Adding/removing money requires actual server moderation permissions, including for the creator. Choose the player and use Add money or Remove money with a reason. Full wallet instructions are in README.md. Wallet actions do not roll dice, apply Rigger, or spend a rig's duration.
 
 ## Add a rig
 

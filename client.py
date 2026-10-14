@@ -9,6 +9,8 @@ from .controls import COMMAND
 from .display import avatar_messages, private_messages, roll_messages, safe
 from .errors import RollError
 from .rigger_ui import RiggerPanel
+from .wallets import Wallets
+from .wallet_ui import WalletPanel
 
 log = logging.getLogger(__name__)
 NO_MENTIONS = discord.AllowedMentions.none()
@@ -22,6 +24,7 @@ class DiceBot(discord.Client):
         # The creator uses DMs; privileged Message Content intent is unnecessary.
         super().__init__(intents=intents, allowed_mentions=NO_MENTIONS)
         self.engine = engine
+        self.wallets = Wallets(engine.store, engine.owner_id)
         self.tree = app_commands.CommandTree(self)
         self.cleaned_guilds = set()
         self.rigger_panel = None
@@ -47,9 +50,14 @@ class DiceBot(discord.Client):
         async def avatar(interaction: discord.Interaction):
             await self.run_avatar(interaction)
 
+        @self.tree.command(name='wallet', description='View your server wallets, balances, and currency history.')
+        @app_commands.guild_only()
+        async def wallet(interaction: discord.Interaction):
+            await self.run_wallet(interaction)
+
     async def setup_hook(self):
         synced = await self.tree.sync()
-        log.info('Registered %s slash commands globally (v%s); /roll and /avatar ready.', len(synced), __version__)
+        log.info('Registered %s slash commands globally (v%s); /roll, /avatar, and /wallet ready.', len(synced), __version__)
 
     async def clean_guild_commands(self, guild):
         if guild.id in self.cleaned_guilds:
@@ -110,8 +118,8 @@ class DiceBot(discord.Client):
         if isinstance(underlying, RollError):
             await self.error(interaction, str(underlying))
         else:
-            log.error('Roll command failed: %s', type(underlying).__name__)
-            await self.error(interaction, 'Could not finish the roll. Please try again.')
+            log.error('Bot command failed: %s', type(underlying).__name__)
+            await self.error(interaction, 'Could not finish this command. Please try again.')
 
     async def run_roll(self, interaction, *, dice=None, bonus=0, faces=None, keep='all'):
         try:
@@ -137,6 +145,14 @@ class DiceBot(discord.Client):
         outcome = self.engine.avatar(interaction.user.id, interaction.guild_id, request_id=interaction.id)
         parts = avatar_messages(outcome['character'], interaction.user.display_name)
         await self.deliver_roll(interaction, parts, outcome)
+
+    async def run_wallet(self, interaction):
+        if not interaction.guild_id or interaction.guild is None:
+            await self.error(interaction, 'Use /wallet in a server.')
+            return
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        panel = WalletPanel(self, interaction)
+        panel.message = await interaction.edit_original_response(embed=panel.embed(), view=panel, allowed_mentions=NO_MENTIONS)
 
     async def deliver_roll(self, interaction, parts, outcome):
         await interaction.edit_original_response(content=parts[0], allowed_mentions=NO_MENTIONS)

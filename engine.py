@@ -4,7 +4,7 @@ import json
 from .avatar import STAT_PARTS, create_character
 from .controls import COMMAND, HELP, MAX_RIGS, category, describe, empty_setting, panel_setting, parse_command, player_id, rule_key
 from .dice import RNG, prepare, values_of
-from .luck import luck_result
+from .luck import extra_dice_result, luck_result
 from .solver import Unavailable, force_face, force_total
 from .errors import RollError, require
 
@@ -111,15 +111,15 @@ class DiceEngine:
         controls['rules'] = [rule for rule in controls['rules'] if rule['remaining'] != 0]
 
     def _draw(self, user_id, plan, controls, used, *, part=None, natural=None, exact_only=False):
-        """Apply luck, shift, then exact force. Only the most specific of each kind wins."""
+        """Apply extra dice, luck, shift, then force; only one rule of each kind wins."""
         natural = plan.roll(self.rng) if natural is None else natural
         result, notices, records = natural, [], []
         candidates = [r for r in controls['rules'] if self._matches(r, user_id, part)
-                      and (not exact_only or r['part'] == part and category(r) != 'luck')
+                      and (not exact_only or r['part'] == part and category(r) not in ('luck', 'extra'))
                       # An old unrestricted exact control changes only the first
                       # eligible part of an Avatar, as it did before durations.
                       and not (r['scope'] == 'all' and r['part'] is None
-                               and category(r) != 'luck' and r['id'] in used)]
+                               and category(r) not in ('luck', 'extra') and r['id'] in used)]
         chosen = {}
         def priority(rule):
             specificity = 2 if rule['part'] == part else 1 if rule['part'] == 'stats' else 0
@@ -128,14 +128,16 @@ class DiceEngine:
             kind = category(rule)
             if kind not in chosen or priority(rule) > priority(chosen[kind]):
                 chosen[kind] = rule
-        for kind in ('luck', 'shift', 'force', 'face'):
+        for kind in ('extra', 'luck', 'shift', 'force', 'face'):
             if kind not in chosen:
                 continue
             rule = chosen[kind]
             mode, value = rule['mode'], rule['value']
             before = result
             try:
-                if kind == 'luck':
+                if kind == 'extra':
+                    result = extra_dice_result(plan, result, mode, value, self.rng)
+                elif kind == 'luck':
                     result = luck_result(plan, result, mode, value)
                 elif mode == 'face':
                     result = force_face(plan, result, value)
@@ -152,6 +154,8 @@ class DiceEngine:
                 notices.append(f"{('Avatar ' + part + ': ') if part else ''}Rig #{rule['id']} could not apply: "
                                f'{exc}. {unchanged}; {duration}.')
             detail = f"{mode} {value}{'%' if kind == 'luck' else ''}"
+            if kind == 'extra':
+                detail = f"{value} extra dice each · keep {'highest' if mode == 'extra_high' else 'lowest'}"
             record = f"{part or '/roll'} · #{rule['id']} {detail}: {before['total']} → {result['total']}"
             if kind == 'luck' and not plan.numeric:
                 record += ' · Luck skipped: text dice have no numeric order.'

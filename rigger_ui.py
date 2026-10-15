@@ -3,7 +3,7 @@
 import logging
 import secrets
 import discord
-from .controls import category, panel_setting, player_id, rig_uses
+from .controls import EXTRA_MODES, MAX_EXTRA_DICE, PASSIVE_MODES, category, panel_setting, player_id, rig_uses
 from .display import chunks, safe
 from .errors import RollError
 
@@ -12,9 +12,9 @@ NO_MENTIONS = discord.AllowedMentions.none()
 
 ROLLS = {
     'roll': ('/roll · Custom dice', 'Change the final total, including bonuses.'),
-    'avatar': ('/avatar · Whole character', 'Good or bad luck on all applicable character rolls.'),
+    'avatar': ('/avatar · Whole character', 'Luck or extra dice on all applicable character rolls.'),
     'iq': ('/avatar · IQ', 'One d20: 1–20.'),
-    'stats': ('/avatar · All six stats', 'Luck on all six dice. Use Stat 1–6 for exact results.'),
+    'stats': ('/avatar · All six stats', 'Luck or extra dice on all six. Use Stat 1–6 for exact results.'),
     **{f'stat{index}': (f'/avatar · Stat {index}', f'Change only die {index} of the ordered 6d20 roll: 1–20.')
        for index in range(1, 7)},
     'nation': ('/avatar · Nation', 'Fire, Water, Earth, or Nomad.'),
@@ -30,6 +30,8 @@ MODES = {
     'shift': ('Add / subtract points', 'Enter +3, -2, or another whole number.'),
     'good': ('Good luck', '1–100% strength toward the highest legal result.'),
     'bad': ('Bad luck', '1–100% strength toward the lowest legal result.'),
+    'extra_high': ('Extra dice · keep highest', 'Roll extra copies of each die, showing only its highest result.'),
+    'extra_low': ('Extra dice · keep lowest', 'Roll extra copies of each die, showing only its lowest result.'),
     'face': ('Text face', 'Choose an exact label from a custom /roll die.'),
 }
 PRESETS = {
@@ -42,14 +44,14 @@ PRESETS = {
     'combat': [('Sword', 1), ('Bow', 21), ('Fan', 41), ('Fists', 61), ('Pressure point', 81)],
 }
 HELP = ('1. Choose the roll you want to change.\n'
-        '2. Choose Force, Add/subtract, Good luck, Bad luck, or Text face.\n'
+        '2. Choose Force, Add/subtract, Luck, Extra dice, or Text face.\n'
         '3. Choose player, or use Target me.\n'
         '4. Pick an outcome or Enter value.\n'
         '5. Use Duration: enter a number of uses or permanent, then Apply.\n\n'
         'Only Apply changes live rolls. Add several Avatar rigs for the same player. '
         'Apply replaces only the same player + roll + kind; other rigs stay active. '
         'Good/bad share one luck slot. Every rig can last 1–1,000,000 uses or be permanent. '
-        'Defaults are one use for force/shift/text and permanent for luck. '
+        'Defaults are one use for force/shift/text and permanent for luck or extra dice. '
         'One /roll command is one use, even with several dice. One /avatar character '
         'is one use per affected rig, even for whole-character or all-six-stats luck. '
         'Finite conditional-part rigs also spend one character use if that part is skipped. '
@@ -60,9 +62,17 @@ HELP = ('1. Choose the roll you want to change.\n'
         'fraction toward its best/worst face, rounded to a legal face. 50% moves halfway; '
         '100% reaches the extreme. Very small strengths may round to no change. '
         'Signed dice respect the final total. Text dice skip luck.\n\n'
+        'Extra dice: choose Keep highest or Keep lowest, then Extra dice. '
+        f'Enter 1–{MAX_EXTRA_DICE} extra dice per result: 4 extra means five candidates, keeping one. '
+        'Each original die uses its own type and faces; weighted faces keep their weights. '
+        'A 6d20 still shows six results. Discarded candidates and the extra count stay hidden. '
+        'Highest/lowest compares each die face before signed arithmetic, modifiers, or keep-high/low. '
+        'Text/mixed dice rank faces in listed order (first distinct face lowest, last highest); '
+        'repeated faces add weight without changing their rank. '
+        'Highest/lowest share one extra-dice slot; percentage luck is a separate slot.\n\n'
         'Choose Stat 1–6 to force or shift each of the six d20s separately. All six stats '
-        'and Whole character support luck only. A stat-specific luck overrides all-stats '
-        'luck, which overrides whole-character luck. Luck, then shift, then exact force '
+        'and Whole character support luck and extra dice. A stat-specific setting overrides all-stats '
+        'and then whole-character settings of the same kind. Extra dice, then luck, shift, and exact force '
         'runs on each part; force wins. Higher/lower means the number, not which nation is best. '
         'A /roll setting never changes /avatar. '
         'Other players, other command scopes, invalid commands, and duplicate requests do not spend uses. '
@@ -87,6 +97,8 @@ def change_value(rule):
         return 'Enter a value'
     if mode in ('good', 'bad'):
         return f"{'Good' if mode == 'good' else 'Bad'} luck {value}%"
+    if mode in EXTRA_MODES:
+        return f"Keep {'highest' if mode == 'extra_high' else 'lowest'} · +{value} dice ({value + 1} total each)"
     if mode == 'shift':
         return f'Add {value:+d}' if value >= 0 else f'Subtract {abs(value)}'
     return f"{'Force' if mode == 'force' else 'Text face'} {value}"
@@ -130,13 +142,16 @@ class PanelSelect(discord.ui.Select):
                 self.panel.draft.update(mode='good', value=50)
             elif self.panel.draft['mode'] in ('good', 'bad') and self.panel.draft['value'] is None:
                 self.panel.draft['value'] = 50
+            elif self.panel.draft['mode'] in EXTRA_MODES and self.panel.draft['value'] is None:
+                self.panel.draft['value'] = 4
         elif self.kind == 'mode':
             if value not in self.panel.allowed_modes():
                 await private_reply(interaction, 'Choose a mode from this panel.')
                 return
             if value != self.panel.draft['mode']:
-                old_luck = self.panel.draft['mode'] in ('good', 'bad')
-                self.panel.draft['value'] = (self.panel.draft['value'] if old_luck else 50) if value in ('good', 'bad') else None
+                same_kind = category({'mode': value}) == category(self.panel.draft)
+                default = 50 if value in ('good', 'bad') else 4 if value in EXTRA_MODES else None
+                self.panel.draft['value'] = self.panel.draft['value'] if same_kind else default
             self.panel.draft['mode'] = value
         elif self.kind == 'active':
             active = self.panel.bot.engine.control_status(interaction.user.id, is_dm=True)
@@ -163,8 +178,9 @@ class PanelInput(discord.ui.Modal):
         self.mode, self.roll = panel.draft['mode'], panel.roll
         self.target = panel.draft['target']
         luck = self.mode in ('good', 'bad')
+        extra = self.mode in EXTRA_MODES
         super().__init__(title='Choose player' if kind == 'target' else 'Rig duration' if kind == 'duration' else
-                         'Luck strength' if luck else 'Enter value', timeout=180)
+                         'Luck strength' if luck else 'Extra dice' if extra else 'Enter value', timeout=180)
         current = (rig_uses(self.mode, panel.draft.get('uses', 'default')) if kind == 'duration' else
                    panel.draft['target' if kind == 'target' else 'value'])
         self.field = discord.ui.TextInput(
@@ -172,10 +188,12 @@ class PanelInput(discord.ui.Modal):
             placeholder='Paste their user ID or mention' if kind == 'target' else
                         '3, 10, or permanent' if kind == 'duration' else
                         '1–100, such as 50' if luck else
+                        '4 extra = 5 candidates; keep one' if extra else
                         'Exact face label' if self.mode == 'face' else 'Whole number, such as 15 or -2',
             min_length=1, max_length=40)
         self.add_item(discord.ui.Label(text='Player user ID or mention' if kind == 'target' else
-                                      'Number of uses, or permanent' if kind == 'duration' else 'Strength (%)' if luck else 'Value',
+                                      'Number of uses, or permanent' if kind == 'duration' else 'Strength (%)' if luck else
+                                      f'Extra dice per result (1–{MAX_EXTRA_DICE})' if extra else 'Value',
                                       component=self.field))
 
     async def interaction_check(self, interaction):
@@ -241,7 +259,7 @@ class RiggerPanel(discord.ui.View):
                 self.draft['scope'] = 'avatar' if self.draft['part'] else 'roll'
             if self.draft['target'] is None:
                 self.draft['target'] = str(bot.engine.owner_id)
-            if self.draft['part'] == 'stats' and self.draft['mode'] not in ('good', 'bad'):
+            if self.draft['part'] == 'stats' and self.draft['mode'] not in PASSIVE_MODES:
                 self.draft.update(mode='good', value=50)
         self.roll = self.draft['part'] or self.draft['scope']
         self.note = 'Choose a roll and change, then Apply.'
@@ -276,14 +294,18 @@ class RiggerPanel(discord.ui.View):
             row=1, placeholder='Choose what to change'))
         quick = self.quick_choices()
         options = [discord.SelectOption(label=label, value=str(value), description=
-                   f'Luck strength {value}%.' if self.draft['mode'] in ('good', 'bad') else f'Forces the die to {value}.',
+                   f'Luck strength {value}%.' if self.draft['mode'] in ('good', 'bad') else
+                   f'{value + 1} candidates per die; show one.' if self.draft['mode'] in EXTRA_MODES else
+                   f'Forces the die to {value}.',
                    default=value == self.draft['value']) for label, value in quick]
         if quick:
-            self.add_item(PanelSelect(self, 'outcome', options, row=2, placeholder='Pick strength or outcome'))
+            self.add_item(PanelSelect(self, 'outcome', options, row=2,
+                          placeholder='Choose extra dice' if self.draft['mode'] in EXTRA_MODES else 'Pick strength or outcome'))
         for label, key, handler, row, style in [
             ('Choose player', 'target', self.choose_target, 3, discord.ButtonStyle.secondary),
             ('Target me', 'me', self.target_me, 3, discord.ButtonStyle.secondary),
-            ('Luck %' if self.draft['mode'] in ('good', 'bad') else 'Enter value', 'value', self.choose_value, 3, discord.ButtonStyle.secondary),
+            ('Luck %' if self.draft['mode'] in ('good', 'bad') else 'Extra dice' if self.draft['mode'] in EXTRA_MODES else
+             'Enter value', 'value', self.choose_value, 3, discord.ButtonStyle.secondary),
             ('Duration', 'duration', self.choose_duration, 3, discord.ButtonStyle.secondary),
             ('Apply', 'apply', self.apply, 4, discord.ButtonStyle.success),
             ('Active rigs', 'active_page', self.show_active, 4, discord.ButtonStyle.primary),
@@ -292,12 +314,14 @@ class RiggerPanel(discord.ui.View):
             self.add_button(label, key, handler, row, style)
 
     def allowed_modes(self):
-        return ('good', 'bad') if self.roll in ('avatar', 'stats') else tuple(
+        return PASSIVE_MODES if self.roll in ('avatar', 'stats') else tuple(
             mode for mode in MODES if mode != 'face' or self.roll == 'roll')
 
     def quick_choices(self):
         if self.draft['mode'] in ('good', 'bad'):
             return [(f'{percent}% strength', percent) for percent in (1, 25, 50, 75, 100)]
+        if self.draft['mode'] in EXTRA_MODES:
+            return [(f'+{extra} extra · {extra + 1} total', extra) for extra in (1, 2, 4, 9, 19)]
         return PRESETS.get(self.roll, []) if self.draft['mode'] == 'force' else []
 
     def add_button(self, label, key, handler, row, style=discord.ButtonStyle.secondary, *, disabled=False):
@@ -438,7 +462,7 @@ class RiggerPanel(discord.ui.View):
         if rule is None:
             await private_reply(interaction, 'That rig has already been used or removed. Press Refresh.')
             return
-        if rule['scope'] == 'all' or rule['part'] == 'stats' and category(rule) != 'luck':
+        if rule['scope'] == 'all' or rule['part'] == 'stats' and category(rule) not in ('luck', 'extra'):
             await private_reply(interaction, 'This is a legacy rig. Remove it and create an explicit /roll or Avatar rig.')
             return
         self.draft = {key: rule[key] for key in ('mode', 'value', 'target', 'scope', 'part')}

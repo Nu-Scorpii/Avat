@@ -1,6 +1,28 @@
-"""Percentage strength moves legal numeric faces toward their best/worst value."""
+"""Private extra-die selection and percentage luck; public results stay ordinary."""
 
 from .dice import values_of
+
+
+def extra_dice_result(plan, natural, mode, extra, rng):
+    """Keep one sampled face per original die; never return discarded candidates."""
+    selected = []
+    for (_, die), original in zip(plan.dice, values_of(natural)):
+        if die.numeric:
+            rank = lambda value: value
+        else:
+            # Text/mixed dice use first-occurrence order. Repetitions add weight,
+            # without changing a face's rank or comparing unlike Python types.
+            order = {}
+            for face in die.faces:
+                order.setdefault((type(face), face), len(order))
+            rank = lambda value: order[(type(value), value)]
+        winner = original
+        for _ in range(extra):
+            candidate = die.roll(rng)
+            if (rank(candidate) > rank(winner) if mode == 'extra_high' else rank(candidate) < rank(winner)):
+                winner = candidate
+        selected.append(winner)
+    return plan.result(selected)
 
 
 def luck_result(plan, natural, mode, percent):

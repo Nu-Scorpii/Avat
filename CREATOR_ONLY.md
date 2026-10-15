@@ -1,4 +1,4 @@
-# Private Rigger panel · 3.7.0
+# Private Rigger panel · 3.8.0
 
 **DM the bot `!rigger`.** Only the account configured as `BOT_OWNER_ID` can open and use it. `!Rigger` also works. No extra words or server IDs are needed.
 
@@ -8,7 +8,7 @@ For currency, everyone uses **`/wallet` in the server** to check their own balan
 
 1. **Choose player** and paste their user ID or mention, or use **Target me**.
 2. Choose **/roll**, an **Avatar part**, **Stat 1–6**, **All six stats**, or **Whole character**.
-3. Choose Force, Add/subtract, Good luck, Bad luck, or Text face where available.
+3. Choose Force, Add/subtract, Good luck, Bad luck, Extra dice (highest/lowest), or Text face where available.
 4. Pick a preset or enter the value.
 5. Press **Duration**. Enter a number such as `3`, or `permanent`, then **Apply**.
 
@@ -22,13 +22,13 @@ Every kind of rig supports **1–1,000,000 uses** or **permanent**. Press **Dura
 |---|---|
 | `/roll` | One command, including all dice, bonuses, and highest/lowest selection |
 | `/avatar` part or individual stat | One character that uses that rig |
-| All six stats / Whole character luck | One complete character; all applicable dice receive the change before one use is spent |
+| All six stats / Whole character luck or extra dice | One complete character; all applicable dice receive the change before one use is spent |
 | Finite conditional part | One targeted character, even if its branch is skipped; no extra dice are drawn |
 | Permanent | Stays until you remove it or change its duration |
 
-Finite rigs expire automatically at zero. **Active rigs** shows `3 uses left`, `1 use left`, or `Permanent`. Counters and permanent rigs survive restarts and Railway redeploys. Other players and other command scopes do not spend uses. Invalid commands and duplicate recent requests do not spend uses. Text luck and fully overridden luck keep their allowances; an impossible force/shift/face attempt spends one use and explains privately. A permanent impossible rig stays active so you can edit or remove it.
+Finite rigs expire automatically at zero. **Active rigs** shows `3 uses left`, `1 use left`, or `Permanent`. Counters and permanent rigs survive restarts and Railway redeploys. Other players and other command scopes do not spend uses. Invalid commands and duplicate recent requests do not spend uses. Text luck and fully overridden luck/extra-dice rigs keep their allowances; an impossible force/shift/face attempt spends one use and explains privately. A permanent impossible rig stays active so you can edit or remove it.
 
-Defaults are one use for force/shift/text and permanent for luck. Old rigs keep those defaults. **Edit selected** loads the live remaining duration. Applying a reused draft sets that slot's allowance to the displayed count; other rigs keep their counters. Use this to replenish a rig deliberately. Check Duration before applying a reused draft.
+Defaults are one use for force/shift/text and permanent for percentage luck or extra dice. Old rigs keep those defaults. **Edit selected** loads the live remaining duration. Applying a reused draft sets that slot's allowance to the displayed count; other rigs keep their counters. Use this to replenish a rig deliberately. Check Duration before applying a reused draft.
 
 ## Luck: 1–100% strength
 
@@ -46,18 +46,35 @@ Signed dice respect the final total. Bonuses and fixed modifiers stay unchanged.
 
 Luck follows its chosen Duration. Set `permanent` to keep it until removed, or set a number of uses. **Active rigs → Remove selected** turns it off immediately; 0% is not a setting.
 
+## Secret extra dice
+
+1. DM **`!rigger`**, choose the player, and select **/roll** or the desired Avatar part.
+2. Choose **Extra dice · keep highest** or **Extra dice · keep lowest**.
+3. Press **Extra dice** and enter **1–100 extra dice per result**, or choose a preset.
+4. Choose **Duration**, then **Apply**.
+
+Enter **4** to make `1d20` draw **five d20 candidates** and display only the highest or lowest. The new mode starts as a 4-extra draft. The panel shows `+4 dice (5 total each)` so the count is clear. The player sees an ordinary `1d20` result; extra candidates, their count, and this mode are not included in the public result or receipt.
+
+Each original die gets its own candidates. A `6d20` still displays six numbers, each chosen from five candidates when the extra count is 4. Mixed rolls retain their types: `1d6+1d100` samples d6 and d100 separately. Bonuses and penalties are added once after selection. Public kh1/kl1 works on the selected results. Highest/lowest compares the face values themselves, before any subtraction in the expression.
+
+All supported numbered dice and numeric custom faces work. Weighted lists preserve repeated-face probabilities. **Text/mixed dice use the order you supplied**: first distinct face is lowest, last distinct face is highest. For `["Bronze","Silver","Gold","Bronze"]`, Gold is highest and Bronze is lowest; the repeated Bronze increases its probability without changing its rank. Numeric lists always use numeric order, even when listed out of order.
+
+This mode samples real dice, so five d20 candidates can still all be low. Use Force when you need an exact total. Extra-highest and extra-lowest share one slot per player/roll, while percentage luck has its own separate slot. One command spends one use regardless of the extra count; whole-character and all-stat settings spend one use per complete character. Defaults are permanent unless Duration is changed.
+
+**Active rigs** shows direction, extra count, total candidates per result, and remaining duration. Edit selected changes it; Remove selected turns it off. Targets work across servers without a server ID.
+
 ## Multiple rigs on one Avatar
 
-Apply adds a rig or updates only the **same player + roll + kind**. Other rigs stay active. Good and bad share one luck slot.
+Apply adds a rig or updates only the **same player + roll + kind**. Other rigs stay active. Good and bad share one percentage-luck slot; extra-highest and extra-lowest share a separate extra-dice slot.
 
 Example: for one player, force Nation to Water Tribes, force Bending check to Bender, and set Stat 1 to 18, Stat 2 to 14, and the other stats individually. All those rigs affect the same next `/avatar`.
 
-**Stat 1–6** changes the first through sixth displayed d20s. Each supports force (1–20), shift, or luck. It changes the existing 6d20 results without drawing extra dice. **All six stats** and **Whole character** support luck only.
+**Stat 1–6** changes the first through sixth displayed d20s. Each supports force (1–20), shift, percentage luck, or extra dice. Only extra-dice mode draws more candidates for that slot. **All six stats** and **Whole character** support percentage luck and extra dice.
 
 When settings overlap:
 
-- A stat's own luck overrides all-six-stats luck, which overrides whole-character luck. Other specific parts override whole-character luck.
-- Each part applies **luck → shift → exact force**. Force wins.
+- A stat's own setting overrides all-six-stats, then whole-character settings of the same kind. Other specific parts override whole-character settings of that kind.
+- Each part applies **extra dice → percentage luck → shift → exact force**. Force wins. Extra candidates are drawn before other changes; only the final result is public.
 - Every rig follows its own duration. Reapplying a slot updates its value and resets its allowance to the displayed duration without adding duplicates.
 
 Up to **100 rigs total** can be saved across all players. `/roll` rigs stay separate from Avatar rigs.

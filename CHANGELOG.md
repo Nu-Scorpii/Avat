@@ -1,3 +1,12 @@
+# Version 3.8.0
+
+- Added Extra dice · keep highest and Extra dice · keep lowest to the private !rigger panel. Choose 1–100 extra candidates per original die; 4 extra makes a normal 1d20 sample five d20s and display one winner.
+- Sample the same die size or custom weighted faces independently for every original die. Numeric faces use numeric order; text/mixed faces use first-occurrence list order. Preserve normal public dice counts, expressions, bonuses, penalties, and kh1/kl1; never include discarded candidates in the public result.
+- Support /roll, individual Avatar parts and stats, all six stats, and whole characters. Select final winners before Avatar branching; avoid sampling all-stat extras twice.
+- Keep highest/lowest in a shared extra-dice slot separate from percentage luck. Apply extra dice before luck, shifts, and exact force, with specific-part overrides. Preserve owner-only DM controls, player targeting, counted/permanent durations, receipts, old rigs, wallets, and transfers.
+- Added a count form, quick presets, clear extra/total labels, live active status, and editing. New extra-dice drafts use 4 extra and default to permanent until Duration is changed.
+- Verified 582 tests, including 58 new candidate-selection, privacy, custom-face, Avatar, duration, persistence, replay, rollback, authorization, and UI regressions. Source, bundle, and isolated four-file startup checks validate all seven commands.
+
 # Version 3.7.0
 
 - Simplified /roll to one optional dice field: 1d100, 1d100+2, or 1d100-2; the default remains 1d20. Removed separate bonus, faces, and keep fields.

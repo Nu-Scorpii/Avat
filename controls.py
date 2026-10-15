@@ -12,6 +12,9 @@ HELP = ('DM !rigger to use the private panel. Choose a player and roll, then App
 MAX_VALUE = 200_000_000_000
 MAX_RIGS = 100
 MAX_USES = 1_000_000
+MAX_EXTRA_DICE = 100
+EXTRA_MODES = ('extra_high', 'extra_low')
+PASSIVE_MODES = ('good', 'bad', *EXTRA_MODES)
 TARGET = re.compile(r'(?:<@!?(\d+)>|(\d+))\Z')
 NUMBER = re.compile(r'[+-]?\d+\Z')
 COMMAND = re.compile(r'!rigger(?:\s|$)', re.IGNORECASE)
@@ -32,7 +35,7 @@ def player_id(value):
 def rig_uses(mode, uses='default'):
     """None means permanent; old defaults are one use or lasting luck."""
     if uses == 'default':
-        return None if mode in ('good', 'bad') else 1
+        return None if mode in PASSIVE_MODES else 1
     if uses is None or isinstance(uses, str) and uses.strip().lower() == 'permanent':
         return None
     require(isinstance(uses, (str, int)) and not isinstance(uses, bool)
@@ -45,16 +48,16 @@ def rig_uses(mode, uses='default'):
 
 def panel_setting(mode, value=None, target=None, *, scope='roll', part=None, uses='default'):
     """Validate a panel draft before changing the active setting."""
-    require(mode in ('off', 'force', 'shift', 'good', 'bad', 'face'), 'Choose a control mode.')
+    require(mode in ('off', 'force', 'shift', 'good', 'bad', 'face', *EXTRA_MODES), 'Choose a control mode.')
     if mode == 'off':
         return empty_setting()
     require(scope in ('roll', 'avatar'), 'Choose /roll or an Avatar roll.')
     require(part is None or part in PART_DICE, 'Choose an Avatar roll.')
     require(scope != 'roll' or part is None, 'Avatar parts only work on /avatar.')
-    require(scope != 'avatar' or part is not None or mode in ('good', 'bad'),
-            'Whole-character controls support luck. Choose a specific Avatar part to force or shift it.')
-    require(part != 'stats' or mode in ('good', 'bad'),
-            'Choose Stat 1–6 to force or shift an individual die. Six stats supports luck.')
+    require(scope != 'avatar' or part is not None or mode in PASSIVE_MODES,
+            'Whole-character controls support luck or extra dice. Choose a specific part to force or shift it.')
+    require(part != 'stats' or mode in PASSIVE_MODES,
+            'Choose Stat 1–6 to force or shift an individual die. Six stats supports luck or extra dice.')
     target = None if target is None else player_id(target)
     if mode in ('force', 'shift'):
         require(isinstance(value, (str, int)) and not isinstance(value, bool)
@@ -65,6 +68,13 @@ def panel_setting(mode, value=None, target=None, *, scope='roll', part=None, use
         if part is not None and mode == 'force':
             low, high = PART_LIMITS[part]
             require(low <= value <= high, f'For {part}, choose a value from {low} to {high}.')
+    elif mode in EXTRA_MODES:
+        require(isinstance(value, (str, int)) and not isinstance(value, bool)
+                and len(str(value)) <= 8 and re.fullmatch(r'\d+', str(value).strip()),
+                'Enter a whole number of extra dice. Use 4 for five candidates per result.')
+        value = int(str(value).strip())
+        require(1 <= value <= MAX_EXTRA_DICE,
+                f'Choose 1–{MAX_EXTRA_DICE} extra dice per result. Use Remove selected to turn it off.')
     elif mode == 'face':
         require(scope == 'roll', 'Text faces only work with /roll custom dice.')
         require(isinstance(value, str) and 1 <= len(value) <= 40 and not any(ord(c) < 32 for c in value),
@@ -143,7 +153,9 @@ def describe(setting):
         return 'Rigger is off. Rolls are normal.'
     label = {'force': f'Next final total: {value}', 'shift': f'Next total shift: {value:+d}' if mode == 'shift' else '',
              'face': f'Next text face: {value}', 'good': f'Good luck: {value or 100}% until removed',
-             'bad': f'Bad luck: {value or 100}% until removed'}[mode]
+             'bad': f'Bad luck: {value or 100}% until removed',
+             'extra_high': f'Extra dice: {value} per result; keep highest',
+             'extra_low': f'Extra dice: {value} per result; keep lowest'}[mode]
     scope = (f"\nRoll: /avatar {setting['part']} only." if setting.get('part') else
              '\nRoll: all /avatar parts.' if setting.get('scope') == 'avatar' else
              '\nRoll: /roll only.' if setting.get('scope') == 'roll' else '\nRoll: /roll and /avatar (legacy setting).')
@@ -155,6 +167,8 @@ def empty_controls():
 
 
 def category(rule):
+    if rule['mode'] in EXTRA_MODES:
+        return 'extra'
     return 'luck' if rule['mode'] in ('good', 'bad') else rule['mode']
 
 

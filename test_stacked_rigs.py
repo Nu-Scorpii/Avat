@@ -280,7 +280,7 @@ def test_luck_modal_and_quick_percent_are_drafts_until_apply(make_engine):
         assert panel.draft['value'] == 37 and not active(engine)
         await button(panel, 'Apply').callback(owner_event(1003))
         assert active(engine)[0]['value'] == 37
-        assert any(field.name == 'Strength' and field.value == '37%' for field in panel.embed().fields)
+        assert any(field.name == 'Change' and field.value == 'Good luck 37%' for field in panel.embed().fields)
         modal.stop()
         panel.stop()
         await bot.close()

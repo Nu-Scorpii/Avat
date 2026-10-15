@@ -1,48 +1,54 @@
-# Simple Discord Dice Bot · 3.6.0
+# Simple Discord Dice Bot · 3.7.0
 
 Players use `/roll`, `/avatar`, and `/wallet`. Moderators use separate currency commands to add, remove, or transfer money. Creator roll controls work privately in DMs.
 
 ## Players: `/roll`
 
-Type `/roll` for **1d20**. Every option is optional.
+Type `/roll`, select its **dice** field, and enter your roll. There is just one field. Add `+2` for a bonus or `-2` for a penalty in the same expression. Leave it blank for **1d20**. Discord command names are lowercase.
 
-| Option | What to put in it |
+| Enter in dice | What it does |
 |---|---|
-| `dice` | `1d20`, `2d17+1d8-3`, or `2d[custom]` |
-| `bonus` | Extra points, such as `3` or `-2` |
-| `faces` | A JSON list such as `[0,1,1,5]` or `["sun","rain","rain","storm"]` |
-| `keep` | All dice, Highest die, or Lowest die |
+| `1d100` | Roll one 100-sided die |
+| `1d100+2` | Roll, then add 2 |
+| `1d100-2` | Roll, then subtract 2 |
+| `6d20+3` | Roll six d20s, then add 3 once |
+| `2d17+1d8-3` | Mix dice sizes, then subtract 3 |
 
-Examples:
+Examples show the value to put in Discord's single dice field:
 
 ```text
 /roll
-/roll dice:1d20 bonus:3
+/roll dice:1d100+2
+/roll dice:1d100-2
 /roll dice:2d17+1d8-3
-/roll dice:2d20 keep:Highest die bonus:2
-/roll faces:[0,1,1,5]
-/roll dice:3d[custom] faces:[0,1,1,5] bonus:2
-/roll faces:["sun","rain","rain","storm"]
 ```
 
-Select the option values in Discord; the examples show what goes into each field. When `dice` is omitted and `faces` is provided, the bot automatically rolls one of your custom dice. Faces belong to that command only. Repeat a face to make it more likely. To mix several custom dice, use `dice:1d[a]+1d[b]` with `faces:{"a":[0,3,8],"b":[1,2,5]}`.
-
-Numeric results add signed modifiers and `bonus` once, after any highest/lowest selection. Highest/lowest works with one positive pool, such as `3d20+2`. A die containing any text face always has no total and cannot use arithmetic, bonuses, or highest/lowest. Text face spelling and capitalization are preserved.
-
-Messages stay short:
+The message shows every die, any **Bonus** or **Penalty**, and the final **Total**. No modifier line is added for a plain roll. Multiple fixed modifiers are shown individually with their net change. For example, if `1d100-2` rolls 50:
 
 ```text
-🎲 Hero rolled 1d20
+🎲 Hero rolled 1d100-2
 
-Rolls: 8
-Bonus: +3
+Rolls: 50
+Penalty: -2
 
-Total: 11
+Total: 48
 ```
 
 Dice values use code formatting and the heading and total are bold. Long rolls are split into readable messages. Input mistakes receive private errors.
 
-Limits: 100 dice per roll, 1–1 billion sides, up to 20 expression terms, 1–1,000 faces per custom die, and whole-number bonuses/modifiers within ±1 billion. Text faces may contain 1–40 characters. No programming expressions are evaluated.
+Advanced rolls still use that same field:
+
+| Enter in dice | What it does |
+|---|---|
+| `3d20kh1+2` | Keep the highest of three d20s, then add 2 |
+| `3d20kl1-2` | Keep the lowest, then subtract 2 |
+| `2d[0,1,1,5]+2` | Roll two weighted custom dice, then add 2 |
+| `1d["sun","rain","rain","storm"]` | Roll a text result; repeated faces add weight |
+| `1d[-5,8]+1d[1,2,5]` | Mix custom numeric dice |
+
+Custom lists use JSON; text labels need double quotes. Face spelling and capitalization are preserved. Highest/lowest uses one positive dice pool. A die containing any text face has no numeric total and cannot use arithmetic or highest/lowest.
+
+Limits: 100 dice, 1–1 billion sides, 20 expression terms, and a **500-character dice field**, including any custom lists. Lists have at most 1,000 faces each, within that expression limit; text labels have 1–40 characters. Fixed modifiers are whole numbers within ±1 billion. No programming expressions are evaluated.
 
 ## Players: `/avatar`
 
@@ -122,7 +128,9 @@ Without a chosen duration, force/shift/text defaults to one use and luck to perm
 
 **Stat 1–6** means the first through sixth values displayed in the existing 6d20 roll. It does not roll extra dice. **All six stats** and **Whole character** support luck; choose individual stats for exact values or point shifts.
 
-Press **Active rigs** to see every active rig with its player, roll, value/percentage, and duration. Use **Only chosen player**, page buttons, **Edit selected**, **Remove selected**, **Clear player**, or **Clear all**. The draft also shows active counts and a quick preview for the chosen player. Private status refreshes after rolls. Up to 100 independent rigs can be saved.
+The compact editor shows **Player, Roll, Change, and Duration**, with active counts in its footer. Preset menus appear only when useful. Press **Active rigs** for the full list, remaining uses, last affected roll, filtering, editing, removal, Refresh, and Clear all. Private status refreshes after rolls. Up to 100 independent rigs can be saved.
+
+For custom `/roll`, **Force** sets the final total including the typed modifier. For example, force 50 with `1d100+2` produces a legal die result of 48, shows Bonus +2, and totals 50. A shift changes the total while keeping the declared bonus or penalty intact. Luck, individual Avatar stats, stacking, and durations still work.
 
 Panels close after ten minutes of inactivity or when reopened; saved rigs stay active. After a restart, DM `!rigger` for a fresh panel. Old version-3 settings migrate with their target and last status intact; old luck without a percentage becomes **100% strength**. Legacy unrestricted or six-stat-total rules remain visible and usable once; remove them to create explicit command/part controls. See `CREATOR_ONLY.md` for the guide.
 
@@ -177,6 +185,6 @@ For local play, copy `.env.example` to `.env`, fill in your token and creator ID
 - Private panel not opening: DM `!rigger` from the exact account identified by `BOT_OWNER_ID`; allow DMs from the bot. This variable must contain your user ID, not the application ID. There is no public `/rigger` command.
 - Old or expired buttons: DM `!rigger` again. Reopening does not arm, clear, or rearm a saved setting.
 - A rig did not apply: open **Active rigs**, check its player ID, roll, value/strength, and remaining uses. Press **Apply** after draft edits. Specific luck overrides broader luck; exact force wins over luck or a shift. Small percentages may round to no change. `/roll` rigs do not affect `/avatar`.
-- A forced result was impossible or its Avatar part was skipped: the regular roll remains valid; finite rigs spend one use and expire at zero, while permanent rigs stay. The panel's **Last affected roll** and your private notice explain why.
+- A forced result was impossible or its Avatar part was skipped: the regular roll remains valid; finite rigs spend one use and expire at zero, while permanent rigs stay. **Active rigs → Last affected roll** and your private notice explain why.
 
 Official API reference: https://discordpy.readthedocs.io/en/stable/interactions/api.html

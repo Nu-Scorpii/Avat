@@ -262,7 +262,7 @@ def test_duration_form_draft_apply_edit_and_refresh_show_live_remaining_uses(mak
         await panel.refresh_message()
         assert any(field.name == 'Duration' and field.value == 'Permanent' for field in panel.embed().fields)
         payload = panel.to_components()
-        assert len(payload) == 5 and all(len(row['components']) <= 5 for row in payload)
+        assert len(payload) == 4 and all(len(row['components']) <= 5 for row in payload)
         assert len(panel.embed()) <= 6000
         form = permanent.to_dict()
         assert form['components'][0]['component']['type'] == 4

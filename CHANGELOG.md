@@ -1,3 +1,12 @@
+# Version 3.7.0
+
+- Simplified /roll to one optional dice field: 1d100, 1d100+2, or 1d100-2; the default remains 1d20. Removed separate bonus, faces, and keep fields.
+- Show each rolled value, a clear Bonus or Penalty line when supplied, and the final total. Multiple modifiers show their terms and net change; points are applied once.
+- Preserved custom weighted/text faces and highest/lowest through the same field, using 2d[0,1,1,5]+2, 1d["Sun","Rain"], 3d20kh1+2, or 3d20kl1-2.
+- Decluttered the private Rigger editor to Player, Roll, Change, and Duration with live counts. Hide unused preset menus; move detailed status, Refresh, and clearing actions into Active rigs.
+- Kept final-total forcing, shifts, percentage luck, text faces, owner-only DM controls, cross-server targeting, independent stacked Avatar rigs, individual stats, durations, and saved wallets intact.
+- Verified 524 tests, including 37 new single-field, modifier, rig compatibility, custom-face, replay, and compact UI regressions. Source, bundle, and isolated four-file startup checks validate all seven commands.
+
 # Version 3.6.0
 
 - Rebuilt /wallet as an unrestricted player balance/history command with a simple dropdown, History, and Refresh. New servers get an empty Main wallet automatically.

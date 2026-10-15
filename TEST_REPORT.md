@@ -1,6 +1,12 @@
-# Validation · 3.6.0
+# Validation · 3.7.0
 
-**487 automated tests pass on Python 3.12.** The actual seven-command tree serializes correctly: /roll, /avatar, /wallet, /wallet-add, /wallet-remove, /wallet-transfer, and /wallet-manage. The player wallet command has no default moderator permission requirement; currency commands enforce real server moderation permissions in their handlers and storage boundary.
+**524 automated tests pass on Python 3.12.** The actual seven-command tree serializes correctly: /roll, /avatar, /wallet, /wallet-add, /wallet-remove, /wallet-transfer, and /wallet-manage. `/roll` has exactly one optional `dice` field. The player wallet command has no default moderator permission requirement; currency commands enforce real server moderation permissions in their handlers and storage boundary.
+
+The 37 new simple-roll regressions verify `1d100`, `1d100+2`, `1d100-2`, Unicode minus, explicit zero, dice pools, visible Bonus/Penalty lines, multiple modifiers and their net value, and no double addition. Rigger force remains an exact final total including the modifier; luck and positive/negative shifts keep the declared modifier unchanged. Coverage includes legal faces, finite duration, another server, replay without consumption, the actual one-field slash callback, default d20, and private-only control details.
+
+Advanced single-field coverage verifies JSON weighted numeric faces, multiple custom pools, preserved text capitalization and delimiters, exact text-face rigs, kh1/kl1 selection, mention escaping, long-message limits, malformed expressions rejected before dice or rig use, and the compact editor with all controls retained. Live counts remain on the draft; duration, detailed status, and management actions remain accessible in Active rigs. The 487 previous regression tests remain passing, with updated assertions for the simplified command and UI.
+
+Source, deployment bundle, and an isolated directory containing only Dockerfile, requirements.txt, railway.toml, and bot.pyz all pass the same offline command validation. The bundle is rebuilt from the canonical source; deployment does not depend on the repository's flattened loose Python files.
 
 The 38 transfer/command tests cover paired debit/credit, conserved totals, linked histories, duplicate requests, restart persistence, self-transfers, overdrafts, receiver limits, invalid amounts, foreign server/wallet/creator isolation, final-write rollback, real simultaneous payments from two database connections, v3.5 schema/data/receipt migration, explicit multi-wallet choice, autocomplete serialization, all six moderator permissions, denied non-moderators including the creator, current membership, bot-account rejection, revoked permissions during member checks, private confirmations, failed confirmation delivery after successful saves, and independence from Avatar and Rigger.
 

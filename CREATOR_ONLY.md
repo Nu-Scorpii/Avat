@@ -1,4 +1,4 @@
-# Private Rigger panel · 3.6.0
+# Private Rigger panel · 3.7.0
 
 **DM the bot `!rigger`.** Only the account configured as `BOT_OWNER_ID` can open and use it. `!Rigger` also works. No extra words or server IDs are needed.
 
@@ -72,7 +72,7 @@ Press **Active rigs** to see every rig's number, player ID, roll, value/percenta
 - **Clear all** removes every rig.
 - **Refresh** checks live state. **Back to draft** retains your unsaved edits.
 
-The main panel shows counts and a short player preview. Status updates privately after rolls, including remaining uses, expired rigs, and the last affected roll. A draft can still show a value or duration after a rig expires; Active rigs is the live list.
+The compact main panel shows just Player, Roll, Change, and Duration, with live active counts in its footer. Unneeded preset menus are hidden. **Active rigs** holds the full list, **Last affected roll**, Refresh, and Clear all. Status updates privately after rolls. A draft can still show a value or duration after a rig expires; Active rigs is the live list.
 
 ## Avatar choices
 
@@ -90,6 +90,12 @@ The main panel shows counts and a short player preview. Status updates privately
 Final rigged values determine later rolls. **Only a final Nomad with bending above 60 rolls the element d3.** Other benders receive their nation's element. At 60 or below, the character rolls non-bender combat. There is no Air bending. Water's tribe d3 is a separate origin roll.
 
 A skipped conditional part draws no extra dice. Its finite rig spends one character use; its permanent rig stays active. Impossible force/shift requests spend one use of that rig, leave that change unapplied, and explain privately; permanent rigs stay. Other successful changes remain effective. Custom `/roll` force includes modifiers and bonuses in its exact total.
+
+## Simple custom rolls
+
+Players now enter everything in one **dice** field: `1d100`, `1d100+2`, or `1d100-2`. The result shows the rolled die, the declared Bonus/Penalty, and the final total. Force means the **final total**, so forcing 50 on `1d100+2` shows a die of 48, Bonus +2, Total 50; on `1d100-2` it shows a die of 52, Penalty -2, Total 50. A requested total must still be possible on that die.
+
+Good/bad luck and shifts preserve the typed modifier. Weighted faces work inline, such as `2d[0,1,1,5]+2`; text faces use `1d["Sun","Rain"]`. Text face rigs match the exact capitalization. Highest/lowest uses `3d20kh1+2` or `3d20kl1-2`. All modes keep their existing owner-only controls, player targets, and durations.
 
 ## Restarts and privacy
 

@@ -325,7 +325,10 @@ def test_panel_refresh_after_public_roll_does_not_leak_private_state(make_engine
         public = event.edit_original_response.await_args.kwargs['content']
         assert '**Total: 15**' in public and 'Rigger' not in public and 'force' not in public
         private = panel.message.edit.await_args.kwargs['embed'].to_dict()
-        assert any(field['name'] == 'Last affected roll' for field in private['fields'])
+        assert '0 active / 0 for this player' in private['footer']['text']
+        assert not any(field['name'] == 'Last affected roll' for field in private['fields'])
+        await button(panel, 'Active rigs').callback(owner_event(1001))
+        assert any(field.name == 'Last affected roll' for field in panel.embed().fields)
         assert engine.store.setting(1)['mode'] == 'off'
         await bot.close()
     asyncio.run(check())

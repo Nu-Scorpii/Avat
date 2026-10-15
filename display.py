@@ -52,10 +52,15 @@ def roll_messages(result, display_name='Player'):
         if group['kept'] is not None:
             lines.append(f"Kept ({'highest' if result['keep'] == 'high' else 'lowest'}): `{group['kept']}`")
     modifiers = [group['modifier'] for group in result['groups'] if 'modifier' in group]
-    if modifiers:
-        lines.append(f'Modifier: `{sum(modifiers):+d}`')
     if result['bonus']:
-        lines.append(f"Bonus: `{result['bonus']:+d}`")
+        modifiers.append(result['bonus'])
+    if len(modifiers) == 1:
+        value = modifiers[0]
+        label = 'Bonus' if value > 0 else 'Penalty' if value < 0 else 'Modifier'
+        lines.append(f'{label}: `{value:+d}`')
+    elif modifiers:
+        shown = ' '.join(f'{value:+d}' for value in modifiers)
+        lines.append(f'Modifiers: `{shown}` · net `{sum(modifiers):+d}`')
     if result['total'] is not None:
         lines.extend(('', f"**Total: {result['total']}**"))
     budget = LIMIT - max(length(heading), length(continued)) - 2

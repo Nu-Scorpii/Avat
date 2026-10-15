@@ -4,7 +4,7 @@ import logging
 import discord
 from discord import app_commands
 from . import __version__
-from .dice import MAX_SIDES, prepare
+from .dice import prepare
 from .controls import COMMAND
 from .display import avatar_messages, private_messages, roll_messages, safe
 from .errors import RollError
@@ -31,19 +31,11 @@ class DiceBot(discord.Client):
         self.rigger_message_id = None
         self.tree.on_error = self.command_error
 
-        @self.tree.command(name='roll', description='Roll any dice, with optional bonus points or custom faces.')
+        @self.tree.command(name='roll', description='Roll dice. Add a bonus or penalty in the same expression: 1d100+2 or 1d100-2.')
         @app_commands.guild_only()
-        @app_commands.describe(dice='Examples: 1d20, 2d17+1d8-3, or 2d[custom]. Default: 1d20 or your custom die.',
-                               bonus='Extra points added to the final total; negative values subtract points.',
-                               faces='Optional JSON faces: [0,1,1,5] or ["sun","rain"]. Repeats add weight.',
-                               keep='Add all dice, or keep the highest/lowest die in one pool.')
-        @app_commands.choices(keep=[app_commands.Choice(name='All dice', value='all'),
-                                   app_commands.Choice(name='Highest die', value='high'),
-                                   app_commands.Choice(name='Lowest die', value='low')])
-        async def roll(interaction: discord.Interaction, dice: str | None = None,
-                       bonus: app_commands.Range[int, -MAX_SIDES, MAX_SIDES] = 0,
-                       faces: str | None = None, keep: str = 'all'):
-            await self.run_roll(interaction, dice=dice, bonus=bonus, faces=faces, keep=keep)
+        @app_commands.describe(dice='1d100, 1d100+2, or 1d100-2. Any dice size; leave blank for 1d20.')
+        async def roll(interaction: discord.Interaction, dice: str | None = None):
+            await self.run_roll(interaction, dice=dice)
 
         @self.tree.command(name='avatar', description='Roll Avatar character IQ, six stats, origin, and bending or combat style.')
         @app_commands.guild_only()

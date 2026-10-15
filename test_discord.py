@@ -22,7 +22,8 @@ def test_seven_slash_commands_and_minimal_intents(make_engine):
         bot = DiceBot(make_engine())
         assert [command.name for command in bot.tree.get_commands()] == ['roll', 'avatar', 'wallet', 'wallet-add', 'wallet-remove', 'wallet-transfer', 'wallet-manage']
         payload = bot.tree.get_commands()[0].to_dict(bot.tree)
-        assert [option['name'] for option in payload['options']] == ['dice', 'bonus', 'faces', 'keep']
+        assert [option['name'] for option in payload['options']] == ['dice']
+        assert not payload['options'][0]['required']
         assert bot.tree.get_commands()[1].to_dict(bot.tree).get('options', []) == []
         assert not bot.intents.message_content
         assert not bot.intents.guild_messages
@@ -125,7 +126,7 @@ def test_only_creator_dm_receives_command_reply(make_engine):
         await bot.on_message(event)
         channel.send.assert_awaited_once()
         assert channel.send.await_args.kwargs['view'] is bot.rigger_panel
-        assert channel.send.await_args.kwargs['embed'].title == '🎲 Rigger'
+        assert channel.send.await_args.kwargs['embed'].title == '🔒 Rigger'
         assert engine.store.setting(1)['mode'] == 'off'
         await bot.close()
     asyncio.run(check())

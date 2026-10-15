@@ -49,7 +49,7 @@ async def validate():
     for payload in payloads:
         assert check(payload) <= 8000, f"/{payload['name']} exceeds Discord's command size limit."
     assert [payload['name'] for payload in payloads] == ['roll', 'avatar', 'wallet', 'wallet-add', 'wallet-remove', 'wallet-transfer', 'wallet-manage']
-    assert [option['name'] for option in payloads[0]['options']] == ['dice', 'bonus', 'faces', 'keep']
+    assert [option['name'] for option in payloads[0]['options']] == ['dice']
     assert payloads[1].get('options', []) == []
     assert payloads[2]['default_member_permissions'] is None
     assert [o['name'] for o in payloads[2].get('options', [])] == ['wallet']

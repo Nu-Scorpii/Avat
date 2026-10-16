@@ -75,7 +75,7 @@ def test_sparse_weighted_numeric_faces_stay_legal_and_strength_is_monotonic():
 
 
 def test_stacking_nation_bending_and_all_six_individual_stats_changes_one_avatar(make_engine):
-    engine = make_engine([8] + [10] * 6 + [1, 60, 1])
+    engine = make_engine([8] + [10] * 6 + [1, 60, 1, 12])
     arm(engine, 'iq', 19)
     arm(engine, 'nation', 76)
     arm(engine, 'bending', 61)
@@ -88,9 +88,9 @@ def test_stacking_nation_bending_and_all_six_individual_stats_changes_one_avatar
     char = result['character']
     assert char['iq'] == 19 and char['stats'] == expected
     assert char['nation'] == 'Nomad' and char['bending'] == 'Water bending'
-    assert set(char['rolls']) == {'iq', 'stats', 'nation', 'bending', 'element'}
+    assert set(char['rolls']) == {'iq', 'stats', 'nation', 'bending', 'element', 'bending_strength'}
     assert char['rolls']['stats'] == prepare('6d20').result(expected)
-    assert engine.rng.calls == 10 and not active(engine) and result['notice'] is None
+    assert engine.rng.calls == 11 and not active(engine) and result['notice'] is None
 
 
 def test_avatar_rigs_ignore_custom_rolls_and_other_players(make_engine):
@@ -108,7 +108,7 @@ def test_avatar_rigs_ignore_custom_rolls_and_other_players(make_engine):
 
 
 def test_six_stat_rigs_can_mix_force_shift_and_percent_luck(make_engine):
-    engine = make_engine([8] + [10] * 6 + [1, 1, 61])
+    engine = make_engine([8] + [10] * 6 + [1, 1, 61, 12])
     arm(engine, 'stat1', 18)
     arm(engine, 'stat2', 3, 'shift')
     arm(engine, 'stat3', 50, 'good')
@@ -120,14 +120,14 @@ def test_six_stat_rigs_can_mix_force_shift_and_percent_luck(make_engine):
 
 
 def test_specific_luck_overrides_broader_luck_and_force_wins_last(make_engine):
-    engine = make_engine([8] + [10] * 6 + [1, 1, 61])
+    engine = make_engine([8] + [10] * 6 + [1, 1, 61, 12])
     arm(engine, None, 25, 'good')
     arm(engine, 'stats', 50, 'good')
     arm(engine, 'stat2', 100, 'bad')
     arm(engine, 'stat3', 20, 'force')
     arm(engine, 'stat3', -2, 'shift')
     # Nation/family/bending/element are also affected by whole-character luck.
-    engine.rng.values = iter([8] + [10] * 6 + [1, 1, 61])
+    engine.rng.values = iter([8] + [10] * 6 + [1, 1, 61, 12])
     char = engine.avatar(42, 100)['character']
     assert char['iq'] == 11 and char['stats'] == [15, 1, 20, 15, 15, 15]
     assert len(active(engine)) == 3
@@ -158,13 +158,15 @@ def test_each_stat_force_range_is_one_to_twenty(part, value, make_engine):
 
 @pytest.mark.parametrize('mode,strength,natural,bender', [('good', 1, 60, False), ('good', 2, 60, True), ('bad', 1, 61, False)])
 def test_percent_bending_drives_nomad_element_branch(mode, strength, natural, bender, make_engine):
-    engine = make_engine(draws(76, bending=natural, end=2))
+    scripted = draws(76, bending=61 if bender else 60, end=2)
+    scripted[8] = natural
+    engine = make_engine(scripted)
     arm(engine, 'bending', strength, mode)
     char = engine.avatar(42, 100)['character']
     assert char['bender'] is bender
     assert ('element' in char['rolls']) is bender
     assert ('combat' in char['rolls']) is (not bender)
-    assert engine.rng.calls == 10
+    assert engine.rng.calls == 10 + int(bender)
 
 
 def test_skipped_and_impossible_rigs_clear_individually_without_erasing_luck_or_other_players(make_engine):

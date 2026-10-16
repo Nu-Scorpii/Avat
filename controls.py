@@ -105,7 +105,7 @@ def parse_command(content):
     if first == 'avatar':
         require(args, 'Choose an Avatar part. Example: !Rigger avatar nation 30.')
         first = args.pop(0).lower()
-        require(first in PART_DICE, 'Choose: iq, stats, nation, tribe, family, control, bending, element, or combat.')
+        require(first in PART_DICE, 'Choose: iq, stats, nation, tribe, family, control, bending, element, bending_strength, or combat.')
     if first in PART_DICE:
         part = first
         require(args, f'Give a number, shift, good, or bad. Example: !Rigger {part} 10.')

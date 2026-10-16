@@ -1,4 +1,4 @@
-# Simple Discord Dice Bot · 3.8.0
+# Simple Discord Dice Bot · 3.9.0
 
 Players use `/roll`, `/avatar`, and `/wallet`. Moderators use separate currency commands to add, remove, or transfer money. Creator roll controls work privately in DMs.
 
@@ -59,6 +59,7 @@ Run `/avatar` in a server. There are no options to fill in. The bot rolls the wh
 3. **Nation:** 1d100, followed by its applicable origin detail.
 4. **Bending:** 1d100. **61–100** means bending; **1–60** means non-bender.
 5. A Nomad bender rolls an element; a non-bender rolls a combat style.
+6. **Bending Strength:** every bender rolls a separate **1d20**. Non-benders skip this roll entirely.
 
 | Nation roll | Origin | Extra origin roll |
 |---|---|---|
@@ -73,7 +74,9 @@ A Fire Nation bender gets Fire bending, a Water Tribes bender gets Water bending
 
 Non-benders roll **1d100: 1–20 Sword, 21–40 Bow, 41–60 Fan, 61–80 Fists, 81–100 Pressure point**. The shared endpoint 80 belongs to Fists. Inapplicable dice are never rolled: no tribe outside Water Tribes, no family outside Fire Nation, no village control outside Earth Kingdom, no combat style for benders, and no extra element roll except for Nomad benders.
 
-The message shows the six stat values and each applicable category with its actual roll. It is a character creation result, not a saved or tracked character sheet. Repeat `/avatar` only when your GM permits a new character roll.
+The message shows the six stat values and each applicable category with its actual roll. Benders also get **Bending Strength: 1–20**, separate from IQ and the six stats; non-benders have no Bending Strength line. It is a character creation result, not a saved or tracked character sheet. Repeat `/avatar` only when your GM permits a new character roll.
+
+For example, a bender's message includes `Bending Strength: 17 (1d20)`. The stat does not change the existing bending threshold or determine the element.
 
 ## Wallets: simple commands
 
@@ -144,6 +147,8 @@ The compact editor shows **Player, Roll, Change, and Duration**, with active cou
 For custom `/roll`, **Force** sets the final total including the typed modifier. For example, force 50 with `1d100+2` produces a legal die result of 48, shows Bonus +2, and totals 50. A shift changes the total while keeping the declared bonus or penalty intact. Luck, individual Avatar stats, stacking, and durations still work.
 
 Panels close after ten minutes of inactivity or when reopened; saved rigs stay active. After a restart, DM `!rigger` for a fresh panel. Old version-3 settings migrate with their target and last status intact; old luck without a percentage becomes **100% strength**. Legacy unrestricted or six-stat-total rules remain visible and usable once; remove them to create explicit command/part controls. See `CREATOR_ONLY.md` for the guide.
+
+**Bending Strength controls:** choose **/avatar · Bending Strength** in `!rigger`. Force 1–20, add/subtract points, percentage luck, and extra-dice highest/lowest all work, with stacking and durations. Whole-character luck/extra dice includes this new stat; All six stats affects only the original six dice. The final bending check decides whether strength is rolled. A strength rig cannot create bending. For a non-bender, the die is skipped: finite strength rigs spend one character use, while permanent rigs stay. Older saved character receipts replay without adding a new random result.
 
 ## Railway
 

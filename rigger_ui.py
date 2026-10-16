@@ -23,6 +23,7 @@ ROLLS = {
     'control': ('/avatar · Earth village', 'Whether the village is under Fire Nation control.'),
     'bending': ('/avatar · Bending check', '1–60 non-bender; 61–100 bender.'),
     'element': ('/avatar · Nomad element', 'Fire, Water, or Earth; bending must be above 60.'),
+    'bending_strength': ('/avatar · Bending Strength', 'Separate d20: 1–20, for benders only.'),
     'combat': ('/avatar · Non-bender combat', 'Sword, Bow, Fan, Fists, or Pressure point.'),
 }
 MODES = {
@@ -79,7 +80,10 @@ HELP = ('1. Choose the roll you want to change.\n'
         'Impossible changes spend one use; permanent rigs stay. Only you get the explanation. '
         'Apply resets just that slot to the duration shown in the draft.\n\n'
         'The Nomad element d3 runs only for Nomad characters with bending above 60. '
-        'It never creates Air bending.\n\n'
+        'It never creates Air bending. Every bender also rolls a separate Bending Strength d20. '
+        'Choose Bending Strength to control it, or Whole character to include it with other parts. '
+        'Non-benders skip that die; a strength rig cannot make someone a bender. '
+        'Finite strength rigs follow the same skipped-part duration rule.\n\n'
         'To copy a player ID: Discord Settings → Advanced → Developer Mode, then '
         'right-click their profile → Copy User ID. '
         'After a restart or an expired panel, DM !rigger again.')

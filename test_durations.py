@@ -72,7 +72,7 @@ def test_a_large_custom_pool_spends_one_use_and_keeps_bonus(make_engine):
 
 
 def test_avatar_luck_affects_all_six_dice_before_spending_one_use(make_engine):
-    character_draws = [8] + [10] * 6 + [76, 100, 2]
+    character_draws = [8] + [10] * 6 + [76, 100, 2, 12]
     engine = make_engine(character_draws * 4)
     for part, mode, value, uses in [(None, 'good', 25, 3), ('stats', 'good', 50, 2),
                                    ('stat1', 'force', 4, 1), ('stat2', 'shift', 2, 'permanent')]:
@@ -88,7 +88,7 @@ def test_avatar_luck_affects_all_six_dice_before_spending_one_use(make_engine):
     fourth = engine.avatar(42, 400)['character']
     assert fourth['stats'] == [10, 12, 10, 10, 10, 10] and fourth['iq'] == 8
     assert len(active(engine)) == 1 and active(engine)[0]['remaining'] is None
-    assert engine.rng.calls == 40
+    assert engine.rng.calls == 44
 
 
 def test_all_six_individual_stat_rigs_can_have_different_durations(make_engine):
@@ -101,7 +101,7 @@ def test_all_six_individual_stat_rigs_can_have_different_durations(make_engine):
         assert stats == [21 - index if use <= index else index for index in range(1, 7)]
         assert {r['part']: r['remaining'] for r in active(engine)} == {
             f'stat{index}': index - use for index in range(use + 1, 7)}
-    assert not active(engine) and engine.rng.calls == 70
+    assert not active(engine) and engine.rng.calls == 77
 
 
 def test_targets_scopes_invalid_rolls_and_replays_do_not_spend_uses(make_engine):
@@ -125,7 +125,7 @@ def test_targets_scopes_invalid_rolls_and_replays_do_not_spend_uses(make_engine)
     character = engine.avatar(42, 100, request_id=902)['character']
     assert character['iq'] == 20 and [r['remaining'] for r in active(engine)] == [1, 1]
     assert engine.avatar(42, 100, request_id=902)['character'] == character
-    assert [r['remaining'] for r in active(engine)] == [1, 1] and engine.rng.calls == 23
+    assert [r['remaining'] for r in active(engine)] == [1, 1] and engine.rng.calls == 25
 
 
 def test_explicit_reapply_resets_only_that_rigs_duration(make_engine):
@@ -172,7 +172,7 @@ def test_finite_conditional_parts_reserve_character_uses_and_permanent_parts_sta
     assert {r['part']: r['remaining'] for r in active(engine)} == {'tribe': 1, 'element': None}
     engine.avatar(42, 200)
     assert len(active(engine)) == 1 and active(engine)[0]['part'] == 'element'
-    assert engine.rng.calls == 20
+    assert engine.rng.calls == 22
 
 
 def test_counts_permanent_rigs_and_receipts_survive_restart(tmp_path, make_engine):

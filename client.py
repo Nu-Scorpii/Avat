@@ -37,7 +37,7 @@ class DiceBot(discord.Client):
         async def roll(interaction: discord.Interaction, dice: str | None = None):
             await self.run_roll(interaction, dice=dice)
 
-        @self.tree.command(name='avatar', description='Roll Avatar character IQ, six stats, origin, and bending or combat style.')
+        @self.tree.command(name='avatar', description='Roll Avatar IQ, six stats, origin, bending strength for benders, or non-bender combat.')
         @app_commands.guild_only()
         async def avatar(interaction: discord.Interaction):
             await self.run_avatar(interaction)

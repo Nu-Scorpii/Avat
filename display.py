@@ -92,6 +92,9 @@ def avatar_messages(character, display_name='Player'):
     lines.extend(('', shown('Bending', character['bending'] or 'Non-bender', 'bending')))
     if 'element' in rolls:
         lines.append(shown('Nomad element', character['bending'], 'element'))
+    # Older saved receipts predate this stat; replay them without drawing again.
+    if 'bending_strength' in rolls:
+        lines.append(f"**Bending Strength:** `{rolls['bending_strength']['total']}` (1d20)")
     if character['combat']:
         lines.append(shown('Combat style', character['combat'], 'combat'))
     return list(chunks('\n'.join(lines)))

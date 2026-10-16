@@ -165,7 +165,7 @@ def test_other_players_scopes_and_invalid_rolls_do_not_draw_extras_or_spend_uses
     engine.avatar(42, 300)
     with pytest.raises(RollError):
         engine.roll(42, 400, '0d20')
-    assert engine.rng.calls == 11 and active(engine)[0]['remaining'] == 1
+    assert engine.rng.calls == 12 and active(engine)[0]['remaining'] == 1
 
 
 def test_replay_persistence_and_finite_duration_across_servers(tmp_path, make_engine):
@@ -197,39 +197,40 @@ def test_failed_receipt_rolls_back_rig_consumption(make_engine, monkeypatch):
 
 def test_whole_avatar_uses_final_winners_for_conditional_branches(make_engine):
     engine = make_engine([8, 12] + [1, 2, 3, 4, 5, 6] + [10, 11, 12, 13, 14, 15] +
-                         [70, 90, 60, 61, 1, 3])
+                         [70, 90, 60, 61, 1, 3, 4, 18])
     arm(engine, extra=1, scope='avatar', uses=2)
     character = engine.avatar(42, 100)['character']
     assert character['iq'] == 12 and character['stats'] == [10, 11, 12, 13, 14, 15]
     assert character['nation'] == 'Nomad' and character['bending'] == 'Earth bending'
-    assert set(character['rolls']) == {'iq', 'stats', 'nation', 'bending', 'element'}
-    assert engine.rng.calls == 20 and active(engine)[0]['remaining'] == 1
+    assert set(character['rolls']) == {'iq', 'stats', 'nation', 'bending', 'element', 'bending_strength'}
+    assert character['bending_strength'] == 18
+    assert engine.rng.calls == 22 and active(engine)[0]['remaining'] == 1
 
 
 def test_all_six_stats_roll_extras_only_once_per_die(make_engine):
-    engine = make_engine([11, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 76, 61, 3])
+    engine = make_engine([11, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 76, 61, 3, 12])
     arm(engine, extra=1, scope='avatar', part='stats', uses=2)
     character = engine.avatar(42, 100)['character']
     assert character['iq'] == 11 and character['stats'] == [7, 8, 9, 10, 11, 12]
-    assert engine.rng.calls == 16 and active(engine)[0]['remaining'] == 1
+    assert engine.rng.calls == 17 and active(engine)[0]['remaining'] == 1
 
 
 def test_individual_stat_extra_setting_overrides_all_stats_only_for_its_slot(make_engine):
-    engine = make_engine([11, 1, 2, 3, 4, 5, 6, 11, 20, 1, 13, 14, 15, 16, 76, 61, 3])
+    engine = make_engine([11, 1, 2, 3, 4, 5, 6, 11, 20, 1, 13, 14, 15, 16, 76, 61, 3, 12])
     arm(engine, extra=1, scope='avatar', part='stats', uses=2)
     arm(engine, mode='extra_low', extra=2, scope='avatar', part='stat2', uses=2)
     character = engine.avatar(42, 100)['character']
     assert character['stats'] == [11, 1, 13, 14, 15, 16]
-    assert engine.rng.calls == 17 and all(rule['remaining'] == 1 for rule in active(engine))
+    assert engine.rng.calls == 18 and all(rule['remaining'] == 1 for rule in active(engine))
 
 
 def test_fully_overridden_stats_setting_does_not_draw_or_spend_uses(make_engine):
-    engine = make_engine([11, 1, 2, 3, 4, 5, 6] + [20] * 6 + [76, 61, 3])
+    engine = make_engine([11, 1, 2, 3, 4, 5, 6] + [20] * 6 + [76, 61, 3, 12])
     arm(engine, extra=100, scope='avatar', part='stats', uses=2)
     for index in range(1, 7):
         arm(engine, mode='extra_low', extra=1, scope='avatar', part=f'stat{index}', uses=1)
     assert engine.avatar(42, 100)['character']['stats'] == [1, 2, 3, 4, 5, 6]
-    assert engine.rng.calls == 16
+    assert engine.rng.calls == 17
     assert len(active(engine)) == 1 and active(engine)[0]['remaining'] == 2
 
 
@@ -246,7 +247,7 @@ def test_skipped_finite_conditional_rig_spends_one_character_use_without_extra_d
     engine = make_engine(draws(76))
     arm(engine, extra=4, scope='avatar', part='tribe', uses=1)
     outcome = engine.avatar(42, 100)
-    assert engine.rng.calls == 10 and 'tribe was not rolled' in outcome['notice']
+    assert engine.rng.calls == 11 and 'tribe was not rolled' in outcome['notice']
     assert not active(engine)
 
 

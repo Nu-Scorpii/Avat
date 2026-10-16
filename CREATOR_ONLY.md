@@ -1,4 +1,4 @@
-# Private Rigger panel · 3.8.0
+# Private Rigger panel · 3.9.0
 
 **DM the bot `!rigger`.** Only the account configured as `BOT_OWNER_ID` can open and use it. `!Rigger` also works. No extra words or server IDs are needed.
 
@@ -102,11 +102,14 @@ The compact main panel shows just Player, Roll, Change, and Duration, with live 
 | Earth village | 1–20 | Under Fire Nation control / not under control |
 | Bending check | 1–100 | Bender (61), Non-bender (60) |
 | Nomad element | 1–3 | Fire, Water, Earth |
+| Bending Strength | 1–20 | Enter value; benders only |
 | Non-bender combat | 1–100 | Sword, Bow, Fan, Fists, Pressure point |
 
 Final rigged values determine later rolls. **Only a final Nomad with bending above 60 rolls the element d3.** Other benders receive their nation's element. At 60 or below, the character rolls non-bender combat. There is no Air bending. Water's tribe d3 is a separate origin roll.
 
-A skipped conditional part draws no extra dice. Its finite rig spends one character use; its permanent rig stays active. Impossible force/shift requests spend one use of that rig, leave that change unapplied, and explain privately; permanent rigs stay. Other successful changes remain effective. Custom `/roll` force includes modifiers and bonuses in its exact total.
+Every bender then rolls **Bending Strength: 1d20**, separate from IQ and the six stats. Select **/avatar · Bending Strength** to force a value from 1–20, shift it, apply percentage luck, or keep the highest/lowest extra-dice candidate. These controls stack and support all durations. Whole-character luck and extra dice include strength; All six stats does not. A strength rig cannot make a non-bender become a bender: change **Bending check** separately if desired. Non-benders never draw or display strength.
+
+A skipped conditional part draws no extra dice. Its finite rig spends one character use; its permanent rig stays active. This also applies to Bending Strength on non-benders. Impossible force/shift requests spend one use of that rig, leave that change unapplied, and explain privately; permanent rigs stay. Other successful changes remain effective. Custom `/roll` force includes modifiers and bonuses in its exact total.
 
 ## Simple custom rolls
 

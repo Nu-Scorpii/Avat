@@ -10,9 +10,9 @@ from test_controls import dm
 from test_discord import interaction
 
 
-def draws(nation, detail=1, bending=61, end=1):
+def draws(nation, detail=1, bending=61, end=1, strength=12):
     return [11, 1, 2, 3, 4, 5, 6, nation] + ([detail] if nation <= 75 else []) + [bending] + (
-        [end] if bending <= 60 or nation > 75 else [])
+        [end] if bending <= 60 or nation > 75 else []) + ([strength] if bending > 60 else [])
 
 
 @pytest.mark.parametrize('nation,expected,branch', [
@@ -26,8 +26,9 @@ def test_nation_boundaries_and_only_applicable_draws(nation, expected, branch, m
     assert character['iq'] == 11
     assert character['stats'] == [1, 2, 3, 4, 5, 6]
     assert character['nation'] == expected
-    assert set(character['rolls']) == {'iq', 'stats', 'nation', 'bending', branch}
-    assert engine.rng.calls == 10
+    assert set(character['rolls']) == {'iq', 'stats', 'nation', 'bending', branch, 'bending_strength'}
+    assert character['bending_strength'] == 12
+    assert engine.rng.calls == 11
 
 
 @pytest.mark.parametrize('value,expected', [(1, 'Civilian family'), (49, 'Civilian family'),
@@ -103,7 +104,7 @@ def test_invalid_part_control_preserves_active_setting(text, make_engine):
     (55, 16, 'Earth Kingdom'), (99, None, 'Nomad')])
 def test_forced_nation_drives_subsequent_branch(nation, detail, expected, make_engine):
     scripted = [11, 1, 2, 3, 4, 5, 6, 80] + ([detail] if detail is not None else []) + [100] + (
-        [3] if expected == 'Nomad' else [])
+        [3] if expected == 'Nomad' else []) + [12]
     engine = make_engine(scripted)
     dm(engine, f'!Rigger nation {nation}')
     outcome = engine.avatar(2, 100)
@@ -115,7 +116,7 @@ def test_forced_nation_drives_subsequent_branch(nation, detail, expected, make_e
 
 @pytest.mark.parametrize('forced,natural,end,bender', [(100, 59, None, True), (1, 100, 81, False)])
 def test_forced_bending_selects_branch_without_unused_draws(forced, natural, end, bender, make_engine):
-    scripted = [11, 1, 2, 3, 4, 5, 6, 1, 1, natural] + ([] if end is None else [end])
+    scripted = [11, 1, 2, 3, 4, 5, 6, 1, 1, natural] + ([12] if bender else [end])
     engine = make_engine(scripted)
     dm(engine, f'!Rigger bending {forced}')
     character = engine.avatar(2, 100)['character']
@@ -131,7 +132,7 @@ def test_scoped_control_ignores_roll_and_other_players_then_follows_target(make_
     assert engine.avatar(9, 100)['character']['bender'] is True
     assert engine.store.setting(1)['mode'] == 'force'
     # Add a combat draw only to the character whose bending check is changed.
-    engine.rng.values = iter(draws(1) + [100])
+    engine.rng.values = iter(draws(1)[:-1] + [100])
     assert engine.avatar(42, 300)['character']['combat'] == 'Pressure point'
     assert engine.store.setting(1)['mode'] == 'off'
 
@@ -150,7 +151,7 @@ def test_stats_force_total_has_six_legal_faces(make_engine):
     character = engine.avatar(2, 100)['character']
     assert character['stats'] == [20] * 6
     assert character['rolls']['stats']['total'] == 120
-    assert engine.rng.calls == 10
+    assert engine.rng.calls == 11
 
 
 def test_shift_is_exact_and_impossible_shift_stays_normal(make_engine):
@@ -166,11 +167,11 @@ def test_shift_is_exact_and_impossible_shift_stays_normal(make_engine):
 
 @pytest.mark.parametrize('mode,expected', [('good', 20), ('bad', 1)])
 def test_full_part_luck_changes_only_that_part_and_persists(mode, expected, make_engine):
-    engine = make_engine([4, 1, 2, 3, 4, 5, 6, 1, 1, 61, 7])
+    engine = make_engine([4, 1, 2, 3, 4, 5, 6, 1, 1, 61, 12, 7])
     dm(engine, f'!Rigger iq {mode}')
     assert engine.avatar(2, 100)['character']['iq'] == expected
     assert engine.roll(2, 200)['dice']['total'] == 7
-    assert engine.rng.calls == 11
+    assert engine.rng.calls == 12
     assert engine.store.setting(1)['mode'] == mode
     assert engine.store.setting(1)['part'] == 'iq'
 
@@ -179,7 +180,7 @@ def test_skipped_one_use_part_clears_privately_without_extra_draw(make_engine):
     engine = make_engine(draws(1))
     dm(engine, '!Rigger tribe 3')
     outcome = engine.avatar(2, 100)
-    assert outcome['character']['tribe'] is None and engine.rng.calls == 10
+    assert outcome['character']['tribe'] is None and engine.rng.calls == 11
     assert 'tribe was not rolled' in outcome['notice']
     assert engine.store.setting(1)['mode'] == 'off'
     assert 'tribe was not rolled' in dm(engine, '!Rigger status')
@@ -199,10 +200,10 @@ def test_avatar_replay_returns_whole_character_without_consuming_new_setting(mak
     dm(engine, '!Rigger nation 30')
     replay = engine.avatar(2, 100, request_id=902)
     assert replay['character'] == first['character'] and replay['replayed']
-    assert engine.rng.calls == 10 and engine.store.setting(1)['part'] == 'nation'
+    assert engine.rng.calls == 11 and engine.store.setting(1)['part'] == 'nation'
     with pytest.raises(RollError, match='different command'):
         engine.avatar(3, 200, request_id=902)
-    assert engine.rng.calls == 10
+    assert engine.rng.calls == 11
 
 
 def test_avatar_write_failure_rolls_back_control_and_all_receipts(make_engine, monkeypatch):
@@ -235,7 +236,7 @@ def test_avatar_part_and_receipt_persist_across_restart(tmp_path, make_engine):
     path = tmp_path / 'avatar.sqlite3'
     first = make_engine([], path)
     dm(first, '!Rigger bending 100 42')
-    second = make_engine(draws(1, bending=59)[:-1], path)
+    second = make_engine(draws(1, bending=59)[:-1] + [12], path)
     result = second.avatar(42, 200, request_id=905)
     assert result['character']['bender']
     third = make_engine([], path)

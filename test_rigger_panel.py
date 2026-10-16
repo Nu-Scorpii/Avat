@@ -137,7 +137,7 @@ def test_panel_can_force_avatar_for_a_nonowner_across_servers(make_engine):
         assert engine.avatar(9, 300)['character']['bender']
         assert engine.store.setting(1)['target'] == '42'
         # The targeted Nomad's natural 60 becomes 61; only then does element d3 roll.
-        engine.rng.values = iter(draws(76, bending=60, end=3))
+        engine.rng.values = iter(draws(76, bending=60, end=3) + [12])
         character = engine.avatar(42, 400)['character']
         assert character['bender'] and character['bending'] == 'Earth bending'
         assert 'element' in character['rolls'] and 'combat' not in character['rolls']
@@ -196,7 +196,9 @@ def test_element_d3_is_only_for_nomads_strictly_above_60(nation, bending, make_e
 
 @pytest.mark.parametrize('forced,natural,bender', [(60, 61, False), (61, 60, True)])
 def test_modified_bending_uses_final_threshold_to_choose_d3_or_combat(forced, natural, bender, make_engine):
-    engine = make_engine(draws(76, bending=natural, end=3))
+    scripted = draws(76, bending=61 if bender else 60, end=3)
+    scripted[8] = natural
+    engine = make_engine(scripted)
     engine.configure(1, is_dm=True, mode='force', value=forced, target=42, scope='avatar', part='bending')
     character = engine.avatar(42, 100)['character']
     assert character['bender'] is bender
@@ -205,13 +207,14 @@ def test_modified_bending_uses_final_threshold_to_choose_d3_or_combat(forced, na
 
 
 def test_full_whole_character_luck_changes_only_needed_parts_and_persists(make_engine):
-    engine = make_engine([1] + [1] * 6 + [1, 60, 1])
+    engine = make_engine([1] + [1] * 6 + [1, 60, 1, 12])
     engine.configure(1, is_dm=True, mode='good', target=42, scope='avatar')
     character = engine.avatar(42, 100)['character']
     assert character['iq'] == 20 and character['stats'] == [20] * 6
     assert character['nation'] == 'Nomad' and character['bending'] == 'Earth bending'
-    assert set(character['rolls']) == {'iq', 'stats', 'nation', 'bending', 'element'}
-    assert engine.rng.calls == 10 and engine.store.setting(1)['mode'] == 'good'
+    assert set(character['rolls']) == {'iq', 'stats', 'nation', 'bending', 'element', 'bending_strength'}
+    assert character['bending_strength'] == 20
+    assert engine.rng.calls == 11 and engine.store.setting(1)['mode'] == 'good'
 
 
 @pytest.mark.parametrize('setting', [

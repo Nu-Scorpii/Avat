@@ -1,3 +1,11 @@
+# Version 3.9.0
+
+- Added a separate Bending Strength 1d20 to every Avatar bender, including all three Nomad elements. Non-benders neither roll nor display it; IQ and the original six stats keep their own dice.
+- Use the final controlled bending check to choose the branch. The existing threshold remains 61–100 for bending, with the element d3 still limited to Nomad benders.
+- Added /avatar · Bending Strength to the private !rigger panel. Support exact 1–20 values, shifts, percentage good/bad luck, extra-dice highest/lowest, stacking, player targets, active status, and counted/permanent durations.
+- Include strength in whole-character luck/extra dice, with specific-strength overrides. Keep all-six-stats controls separate and follow existing finite skipped-part duration behavior. Preserve old receipt replays without generating missing strength rolls.
+- Verified 618 tests, including 36 new conditional-strength, Rigger, persistence, privacy, and UI checks. Source, bundle, and isolated four-file startup checks validate all seven commands.
+
 # Version 3.8.0
 
 - Added Extra dice · keep highest and Extra dice · keep lowest to the private !rigger panel. Choose 1–100 extra candidates per original die; 4 extra makes a normal 1d20 sample five d20s and display one winner.

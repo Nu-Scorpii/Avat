@@ -50,14 +50,14 @@ HELP = ('1. Choose the roll you want to change.\n'
         '3. Choose player, or use Target me.\n'
         '4. Pick an outcome or Enter value.\n'
         '5. Use Duration: enter a number of uses or permanent, then Apply.\n\n'
-        'Only Apply changes live rolls. Add several Avatar rigs for the same player. '
-        'Apply replaces only the same player + roll + kind; other rigs stay active. '
-        'Good/bad share one luck slot. Every rig can last 1–1,000,000 uses or be permanent. '
+        'Only Apply changes live rolls. Add several Avatar controls for the same player. '
+        'Apply replaces only the same player + roll + kind; other controls stay active. '
+        'Good/bad share one luck slot. Every control can last 1–1,000,000 uses or be permanent. '
         'Defaults are one use for force/shift/text and permanent for luck or extra dice. '
         'One /roll command is one use, even with several dice. One /avatar character '
-        'is one use per affected rig, even for whole-character or all-six-stats luck. '
-        'Finite conditional-part rigs also spend one character use if that part is skipped. '
-        'Permanent rigs stay until removed. Active rigs shows remaining uses, with player filtering, '
+        'is one use per affected control, even for whole-character or all-six-stats luck. '
+        'Finite conditional-part controls also spend one character use if that part is skipped. '
+        'Permanent controls stay until removed. Active controls shows remaining uses, with player filtering, '
         'Edit selected, Remove selected, Clear player, and Clear all. '
         'Player targets work in every server; no server ID is needed.\n\n'
         'Luck strength is 1–100%, not a chance to activate. Each numeric die moves that '
@@ -78,22 +78,22 @@ HELP = ('1. Choose the roll you want to change.\n'
         'runs on each part; force wins. Higher/lower means the number, not which nation is best. '
         'A /roll setting never changes /avatar. '
         'Other players, other command scopes, invalid commands, and duplicate requests do not spend uses. '
-        'Impossible changes spend one use; permanent rigs stay. Only you get the explanation. '
+        'Impossible changes spend one use; permanent controls stay. Only you get the explanation. '
         'Apply resets just that slot to the duration shown in the draft.\n\n'
         'The Nomad element d3 runs only for Nomad characters with bending above 60. '
         'It never creates Air bending. Every bender also rolls a separate Bending Strength d20. '
         'Choose Bending Strength to control it, or Whole character to include it with other parts. '
-        'Non-benders skip that die; a strength rig cannot make someone a bender. '
-        'Finite strength rigs follow the same skipped-part duration rule.\n\n'
+        'Non-benders skip that die; a strength control cannot make someone a bender. '
+        'Finite strength controls follow the same skipped-part duration rule.\n\n'
         'Custom rolls opens the server template picker. Choose a named command, then Whole character '
-        'or a named roll. No server ID is needed. Custom rigs only affect that template in its own server; '
+        'or a named roll. No server ID is needed. Custom controls only affect that template in its own server; '
         'they never alter /avatar or /roll. Named probabilities and weighted tables have named Force presets; highest/lowest '
         'and luck follow the outcome order, not which name sounds best. Conditions use final controlled values. '
-        'Named probability results show only the chosen name; their internal selection and rig details stay private. '
-        'A template spends one use per affected rig. Finite skipped-part rigs follow the Avatar rule.\n\n'
+        'Named probability results show only the chosen name; internal selection details stay private. '
+        'A template spends one use per affected control. Finite skipped-part controls follow the Avatar rule.\n\n'
         'To copy a player ID: Discord Settings → Advanced → Developer Mode, then '
         'right-click their profile → Copy User ID. '
-        'After a restart or an expired panel, DM !rigger again.')
+        'After a restart or an expired panel, send the private trigger again.')
 PAGE_SIZE = 8
 
 
@@ -115,7 +115,7 @@ def change_value(rule, customs=None):
             name = outcome_at(entry['outcomes'], value) if entry and entry['type'] in OUTCOME_TYPES else None
             if name is not None: return f'Force {name}'
         except RollError:
-            pass  # Removed/unpublished templates still have removable active rigs.
+            pass  # Removed/unpublished templates still have removable active controls.
     if mode in ('good', 'bad'):
         return f"{'Good' if mode == 'good' else 'Bad'} luck {value}%"
     if mode in EXTRA_MODES:
@@ -188,10 +188,10 @@ class PanelSelect(discord.ui.Select):
         elif self.kind == 'active':
             active = self.panel.bot.engine.control_status(interaction.user.id, is_dm=True)
             if not value.isdecimal() or not any(r['id'] == int(value) for r in active['rules']):
-                await private_reply(interaction, 'That rig has already been used or removed. Press Refresh.')
+                await private_reply(interaction, 'That control has already been used or removed. Press Refresh.')
                 return
             self.panel.selected_id = int(value)
-            self.panel.note = f'Selected rig #{value}.'
+            self.panel.note = f'Selected control #{value}.'
             await self.panel.update(interaction)
             return
         else:
@@ -211,7 +211,7 @@ class PanelInput(discord.ui.Modal):
         self.target = panel.draft['target']
         luck = self.mode in ('good', 'bad')
         extra = self.mode in EXTRA_MODES
-        super().__init__(title='Choose player' if kind == 'target' else 'Rig duration' if kind == 'duration' else
+        super().__init__(title='Choose player' if kind == 'target' else 'Control duration' if kind == 'duration' else
                          'Luck strength' if luck else 'Extra dice' if extra else 'Enter value', timeout=180)
         current = (rig_uses(self.mode, panel.draft.get('uses', 'default')) if kind == 'duration' else
                    panel.draft['target' if kind == 'target' else 'value'])
@@ -250,7 +250,7 @@ class PanelInput(discord.ui.Modal):
                 if user.bot:
                     raise RollError('Choose a player account, not a bot account.')
                 if self.panel.is_finished():
-                    raise RollError('This panel has closed. DM !rigger to open a new one.')
+                    raise RollError('This panel has closed. Send the private trigger to open a new one.')
                 self.panel.draft['target'] = target
             else:
                 if self.mode != self.panel.draft['mode'] or self.roll != self.panel.roll:
@@ -268,7 +268,7 @@ class PanelInput(discord.ui.Modal):
 
     async def on_error(self, interaction, error):
         log.warning('Private panel input failed: %s.', type(error).__name__)
-        await private_reply(interaction, 'Could not update the draft. Open !rigger again.')
+        await private_reply(interaction, 'Could not update the draft. Reopen the private panel.')
 
 
 class RiggerPanel(discord.ui.View):
@@ -306,7 +306,7 @@ class RiggerPanel(discord.ui.View):
             await private_reply(interaction, 'These controls are private to the bot creator.')
             return False
         if self.is_finished():
-            await private_reply(interaction, 'This panel has closed. DM !rigger to open a new one.')
+            await private_reply(interaction, 'This panel has closed. Send the private trigger to open a new one.')
             return False
         return True
 
@@ -357,7 +357,7 @@ class RiggerPanel(discord.ui.View):
              'Enter value', 'value', self.choose_value, 3, discord.ButtonStyle.secondary),
             ('Duration', 'duration', self.choose_duration, 3, discord.ButtonStyle.secondary),
             ('Apply', 'apply', self.apply, 4, discord.ButtonStyle.success),
-            ('Active rigs', 'active_page', self.show_active, 4, discord.ButtonStyle.primary),
+            ('Active controls', 'active_page', self.show_active, 4, discord.ButtonStyle.primary),
             ('Help', 'help', self.help, 4, discord.ButtonStyle.secondary),
             ('Custom rolls', 'customs', self.show_customs, 4, discord.ButtonStyle.secondary),
         ]:
@@ -393,7 +393,7 @@ class RiggerPanel(discord.ui.View):
         self.add_button('Previous', 'custom_prev', self.custom_previous, 1, disabled=self.custom_page == 0)
         self.add_button('Next', 'custom_next', self.custom_next, 1, disabled=(self.custom_page + 1) * 25 >= len(records))
         self.add_button('Standard rolls', 'standard', self.standard_rolls, 1)
-        self.add_button('Active rigs', 'active_page', self.show_active, 1)
+        self.add_button('Active controls', 'active_page', self.show_active, 1)
 
     async def show_customs(self, interaction):
         self.page, self.custom_page = 'customs', 0
@@ -459,8 +459,8 @@ class RiggerPanel(discord.ui.View):
         options = [discord.SelectOption(label=short(f"#{r['id']} · {roll_label(r, self.bot.customs)} · {change_label(r, self.bot.customs)}"),
                    value=str(r['id']), description=f"Player {r['target'] or 'anyone (legacy)'}",
                    default=r['id'] == self.selected_id) for r in shown]
-        self.add_item(PanelSelect(self, 'active', options or [discord.SelectOption(label='No active rigs', value='none')],
-                      row=0, placeholder='Choose a rig to edit or remove', disabled=not shown))
+        self.add_item(PanelSelect(self, 'active', options or [discord.SelectOption(label='No active controls', value='none')],
+                      row=0, placeholder='Choose a control to edit or remove', disabled=not shown))
         for label, key, handler, row, style, disabled in [
             ('Edit selected', 'edit', self.edit_selected, 1, discord.ButtonStyle.primary, self.selected_id is None),
             ('Remove selected', 'remove', self.remove_selected, 1, discord.ButtonStyle.danger, self.selected_id is None),
@@ -478,25 +478,25 @@ class RiggerPanel(discord.ui.View):
     def embed(self):
         active = self.bot.engine.control_status(self.bot.engine.owner_id, is_dm=True)
         if self.page == 'customs':
-            embed = discord.Embed(title='🔒 Custom character rigs', description=self.note, colour=0x8B5CF6)
+            embed = discord.Embed(title='🔒 Custom character controls', description=self.note, colour=0x8B5CF6)
             embed.add_field(name='Named commands', value='Choose a template, then its whole character or an individual named roll.', inline=False)
             embed.set_footer(text=f'{self.custom_count} templates • Page {self.custom_page + 1} • Creator only')
             return embed
         if self.page == 'active':
             rules, shown = self.active_slice(active)
-            embed = discord.Embed(title=f"🔒 Active rigs · {len(active['rules'])}", description=self.note, colour=0x5865F2)
+            embed = discord.Embed(title=f"🔒 Active controls · {len(active['rules'])}", description=self.note, colour=0x5865F2)
             embed.add_field(name='Chosen player', value=f"`{self.draft['target']}` · Clear player uses this ID", inline=False)
             for rule in shown:
                 embed.add_field(name=f"#{rule['id']} · {roll_label(rule, self.bot.customs)}", value=safe(
                     f"{change_label(rule, self.bot.customs)}\nPlayer {rule['target'] or 'anyone (legacy)'}"), inline=False)
             if not shown:
-                embed.add_field(name='Status', value='No active rigs in this view.', inline=False)
+                embed.add_field(name='Status', value='No active controls in this view.', inline=False)
             if active['last']:
                 embed.add_field(name='Last affected roll', value=next(chunks(safe(active['last']), 1000)), inline=False)
             embed.set_footer(text=f"Page {self.active_page + 1}/{max(1, (len(rules) + PAGE_SIZE - 1) // PAGE_SIZE)} • "
                              f"{'Chosen player' if self.player_only else 'All players'} • Private to you")
             return embed
-        embed = discord.Embed(title='🔒 Rigger', description=self.note, colour=0x5865F2)
+        embed = discord.Embed(title='🔒 Creator Controls', description=self.note, colour=0x5865F2)
         target = self.draft['target']
         embed.add_field(name='Player', value=f"{'You' if target == str(self.bot.engine.owner_id) else 'Player'} · `{target}`", inline=False)
         embed.add_field(name='Roll', value=self.roll_options()[self.roll][0], inline=True)
@@ -505,7 +505,7 @@ class RiggerPanel(discord.ui.View):
                         inline=True)
         player_rules = [r for r in active['rules'] if r['target'] == target]
         embed.set_footer(text=f"Draft until Apply · {len(active['rules'])} active / {len(player_rules)} for this player · "
-                              'Details in Active rigs')
+                              'Details in Active controls')
         return embed
 
     async def update(self, interaction):
@@ -545,7 +545,7 @@ class RiggerPanel(discord.ui.View):
         self.bot.engine.configure(interaction.user.id, is_dm=interaction.guild_id is None,
                                   mode='off', request_id=interaction.id)
         self.selected_id = None
-        self.note = '✅ All rigs cleared.'
+        self.note = '✅ All controls cleared.'
         await self.update(interaction)
 
     async def refresh(self, interaction):
@@ -554,7 +554,7 @@ class RiggerPanel(discord.ui.View):
 
     async def show_active(self, interaction):
         self.page, self.active_page, self.player_only = 'active', 0, False
-        self.note = 'Select a rig to edit or remove.'
+        self.note = 'Select a control to edit or remove.'
         await self.update(interaction)
 
     async def back_to_draft(self, interaction):
@@ -579,10 +579,10 @@ class RiggerPanel(discord.ui.View):
         active = self.bot.engine.control_status(interaction.user.id, is_dm=interaction.guild_id is None)
         rule = next((r for r in active['rules'] if r['id'] == self.selected_id), None)
         if rule is None:
-            await private_reply(interaction, 'That rig has already been used or removed. Press Refresh.')
+            await private_reply(interaction, 'That control has already been used or removed. Press Refresh.')
             return
         if rule['scope'] == 'all' or rule['part'] == 'stats' and category(rule) not in ('luck', 'extra'):
-            await private_reply(interaction, 'This is a legacy rig. Remove it and create an explicit /roll or Avatar rig.')
+            await private_reply(interaction, 'This is a legacy control. Remove it and create an explicit /roll or Avatar control.')
             return
         self.draft = {key: rule[key] for key in ('mode', 'value', 'target', 'scope', 'part')}
         self.draft['uses'] = rule['remaining']
@@ -598,14 +598,14 @@ class RiggerPanel(discord.ui.View):
             self.bot.engine.remove_control(interaction.user.id, is_dm=interaction.guild_id is None,
                                            rule_id=self.selected_id, request_id=interaction.id)
         self.selected_id = None
-        self.note = '✅ Rig removed.'
+        self.note = '✅ Control removed.'
         await self.update(interaction)
 
     async def clear_player(self, interaction):
         await interaction.response.defer()
         self.bot.engine.remove_control(interaction.user.id, is_dm=interaction.guild_id is None,
                                        target=self.draft['target'], request_id=interaction.id)
-        self.note = f"✅ Cleared rigs for player {self.draft['target']}. Other players' rigs were kept."
+        self.note = f"✅ Cleared controls for player {self.draft['target']}. Other players' controls were kept."
         await self.update(interaction)
 
     async def help(self, interaction):
@@ -621,7 +621,7 @@ class RiggerPanel(discord.ui.View):
         self.stop()
         for item in self.children:
             item.disabled = True
-        self.note = 'Panel closed. DM !rigger to reopen it. Active settings are kept.'
+        self.note = 'Panel closed. Send the private trigger to reopen it. Active settings are kept.'
         if self.message is not None:
             try:
                 await self.message.edit(embed=self.embed(), view=self, allowed_mentions=NO_MENTIONS)
@@ -633,4 +633,4 @@ class RiggerPanel(discord.ui.View):
 
     async def on_error(self, interaction, error, item):
         log.warning('Private panel action failed: %s.', type(error).__name__)
-        await private_reply(interaction, 'Could not update the setting. Press Refresh or DM !rigger again.')
+        await private_reply(interaction, 'Could not update the setting. Press Refresh or reopen the private panel.')

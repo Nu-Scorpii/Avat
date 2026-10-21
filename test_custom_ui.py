@@ -187,7 +187,7 @@ def test_rigger_custom_picker_named_outcomes_text_faces_and_active_tracking(make
         picker._values = ['2']; await picker.callback(owner_event(1504))
         await button(panel, 'Apply').callback(owner_event(1505))
         assert engine.store.controls(1)['rules'][0]['value'] == 2
-        await button(panel, 'Active rigs').callback(owner_event(1506))
+        await button(panel, 'Active controls').callback(owner_event(1506))
         assert '/hero · Nation' in str(panel.embed().to_dict())
         payload_limits(panel)
         await button(panel, 'Back to draft').callback(owner_event(1507))

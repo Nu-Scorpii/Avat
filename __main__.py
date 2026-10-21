@@ -2,9 +2,11 @@
 
 import argparse
 import asyncio
+import json
 import logging
 import os
 from pathlib import Path
+import re
 import signal
 from dotenv import load_dotenv
 from .client import DiceBot
@@ -48,6 +50,8 @@ async def validate():
         return size + sum(check(child, depth + 1) for child in node.get('options', []))
     for payload in payloads:
         assert check(payload) <= 8000, f"/{payload['name']} exceeds Discord's command size limit."
+    public_tree = json.dumps(payloads, ensure_ascii=False).lower()
+    assert re.search(r'\b(?:rigger|rigging|rigs?)\b', public_tree) is None
     assert [payload['name'] for payload in payloads] == ['roll', 'avatar', 'wallet', 'wallet-add', 'wallet-remove', 'wallet-transfer', 'wallet-manage', 'builder', 'custom']
     assert [option['name'] for option in payloads[0]['options']] == ['dice']
     assert payloads[1].get('options', []) == []

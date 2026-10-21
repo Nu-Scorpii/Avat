@@ -196,7 +196,7 @@ def test_private_panel_can_apply_edit_and_track_strength(make_engine):
             assert not active(engine)
         await button(panel, 'Apply').callback(owner_event(1002))
         assert engine.avatar(42, 100)['character']['bending_strength'] == 18
-        await button(panel, 'Active rigs').callback(owner_event(1003))
+        await button(panel, 'Active controls').callback(owner_event(1003))
         payload = panel.embed().to_dict()
         assert 'Bending Strength' in json.dumps(payload) and '1 use left' in json.dumps(payload)
         picked = select(panel, 'active')

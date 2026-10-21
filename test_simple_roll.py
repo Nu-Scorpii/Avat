@@ -145,8 +145,8 @@ def test_compact_editor_retains_controls_and_moves_details_to_manager(make_engin
         assert '1 active / 1 for this player' in embed.footer.text
         assert not any(isinstance(child, PanelSelect) and child.disabled for child in panel.children)
         labels = {child.label for child in panel.children if isinstance(child, discord.ui.Button)}
-        assert labels == {'Choose player', 'Target me', 'Enter value', 'Duration', 'Apply', 'Active rigs', 'Help', 'Custom rolls'}
-        await button(panel, 'Active rigs').callback(owner_event())
+        assert labels == {'Choose player', 'Target me', 'Enter value', 'Duration', 'Apply', 'Active controls', 'Help', 'Custom rolls'}
+        await button(panel, 'Active controls').callback(owner_event())
         manager = str(panel.embed().to_dict())
         assert '2 uses left' in manager and 'Last affected roll' in manager
         assert button(panel, 'Clear all') and button(panel, 'Refresh')

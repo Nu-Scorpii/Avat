@@ -43,7 +43,7 @@ def character_embeds(character, name='Player', *, preview=False):
     if not character['results']:
         pages[0].add_field(name='No rolls matched', value='None of this template’s conditions were met.', inline=False)
     for index, embed in enumerate(pages):
-        embed.set_footer(text=('Draft preview • No rigs or saved results' if preview else 'Character creation') +
+        embed.set_footer(text=('Draft preview • Sample only' if preview else 'Character creation') +
                               (f' • {index + 1}/{len(pages)}' if len(pages) > 1 else ''))
     return pages
 

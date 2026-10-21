@@ -187,7 +187,7 @@ def test_rigger_force_picker_and_active_status_show_the_named_outcome(make_engin
         picker._values = ['2']; await picker.callback(owner_event(2204))
         assert panel.embed().fields[2].value == 'Force Water'
         await button(panel, 'Apply').callback(owner_event(2205))
-        await button(panel, 'Active rigs').callback(owner_event(2206))
+        await button(panel, 'Active controls').callback(owner_event(2206))
         assert 'Force Water' in str(panel.embed().to_dict())
         payload_limits(panel)
         engine.customs.visibility(9, 100, cmd['id'], cmd['revision'], 'unpublish', is_manager=True)

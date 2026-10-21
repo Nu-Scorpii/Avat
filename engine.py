@@ -47,7 +47,7 @@ class DiceEngine:
                 if existing:
                     existing.update({key: new[key] for key in ('mode', 'value', 'target', 'scope', 'part', 'remaining')})
                 else:
-                    require(len(controls['rules']) < MAX_RIGS, '100 rigs are already active. Remove an unused rig first.')
+                    require(len(controls['rules']) < MAX_RIGS, '100 controls are already active. Remove an unused control first.')
                     controls['rules'].append({key: new[key] for key in ('mode', 'value', 'target', 'scope', 'part', 'remaining')} |
                                              {'id': controls['next_id']})
                     controls['next_id'] += 1
@@ -58,9 +58,9 @@ class DiceEngine:
     def remove_control(self, author_id, *, is_dm, rule_id=None, target=None, request_id=None):
         """Remove one stable rule ID, or all rules for one explicitly chosen player."""
         require(is_dm and author_id == self.owner_id, 'These controls are private to the bot creator.')
-        require((rule_id is None) != (target is None), 'Choose a rig or a player to clear.')
+        require((rule_id is None) != (target is None), 'Choose a control or a player to clear.')
         if rule_id is not None:
-            require(type(rule_id) is int and rule_id > 0, 'Choose an active rig.')
+            require(type(rule_id) is int and rule_id > 0, 'Choose an active control.')
         else:
             target = player_id(target)
         signature = json.dumps(['remove', author_id, rule_id, target])
@@ -117,7 +117,7 @@ class DiceEngine:
 
     @staticmethod
     def _consume(controls, used):
-        """Each affected command spends at most one use of each rig, atomically."""
+        """Each affected command spends at most one use of each control, atomically."""
         for rule in controls['rules']:
             if rule['id'] in used and rule['remaining'] is not None:
                 rule['remaining'] -= 1
@@ -161,10 +161,10 @@ class DiceEngine:
                     result = force_total(plan, result, target)
             except Unavailable as exc:
                 unchanged = ('The roll stayed normal' if result == natural else 'Other successful changes were kept')
-                duration = ('this rig stays permanent' if rule['remaining'] is None else
-                            'this one-use rig is cleared' if rule['remaining'] == 1 else
+                duration = ('this control stays permanent' if rule['remaining'] is None else
+                            'this one-use control is cleared' if rule['remaining'] == 1 else
                             f"one use is spent; {rule['remaining'] - 1} remain")
-                notices.append(f"{((label or 'Avatar ' + part) + ': ') if part else ''}Rig #{rule['id']} could not apply: "
+                notices.append(f"{((label or 'Avatar ' + part) + ': ') if part else ''}Control #{rule['id']} could not apply: "
                                f'{exc}. {unchanged}; {duration}.')
             detail = f"{mode} {value}{'%' if kind == 'luck' else ''}"
             if kind == 'extra':
@@ -231,14 +231,14 @@ class DiceEngine:
                 return result
 
             character = create_character(draw)
-            # A finite conditional rig reserves character uses, even when that
-            # character does not need its branch. Permanent rigs remain active.
+            # A finite conditional control reserves character uses, even when that
+            # character does not need its branch. Permanent controls remain active.
             skipped = [r for r in controls['rules'] if r['scope'] in ('avatar', 'all')
                        and r['part'] is not None and r['part'] not in drawn
                        and (r['target'] is None or r['target'] == str(user_id)) and r['remaining'] is not None]
             for rule in skipped:
-                duration = (f"One-use rig #{rule['id']} is cleared." if rule['remaining'] == 1 else
-                            f"Rig #{rule['id']} spent one character use; {rule['remaining'] - 1} remain.")
+                duration = (f"One-use control #{rule['id']} is cleared." if rule['remaining'] == 1 else
+                            f"Control #{rule['id']} spent one character use; {rule['remaining'] - 1} remain.")
                 notices.append(f"Avatar {rule['part']} was not rolled for user {user_id}: this character did not need it. "
                                + duration)
                 used.add(rule['id'])
@@ -274,7 +274,7 @@ class DiceEngine:
                 if (rule['scope'] == scope and rule['part'] is not None and rule['part'] not in drawn
                         and rule['target'] in (None, str(user_id)) and rule['remaining'] is not None):
                     used.add(rule['id'])
-                    notices.append(f"/{command['name']} · Rig #{rule['id']}: its roll was skipped or removed; one character use spent.")
+                    notices.append(f"/{command['name']} · Control #{rule['id']}: its roll was skipped or removed; one character use spent.")
             self._consume(controls, used)
             if records or notices:
                 controls['last'] = (f'User {user_id} · server {guild_id}\n' + '\n'.join(records + notices))[:1000]

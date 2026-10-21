@@ -246,7 +246,7 @@ def test_duration_form_draft_apply_edit_and_refresh_show_live_remaining_uses(mak
         panel.draft['value'] = 15
         await button(panel, 'Apply').callback(owner_event(1002))
         engine.roll(1, 100)
-        await button(panel, 'Active rigs').callback(owner_event(1003))
+        await button(panel, 'Active controls').callback(owner_event(1003))
         assert '2 uses left' in str(panel.embed().to_dict())
         choice = select(panel, 'active')
         choice._values = [str(active(engine)[0]['id'])]

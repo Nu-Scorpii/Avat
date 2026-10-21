@@ -295,7 +295,7 @@ def test_owner_ui_sets_count_direction_duration_and_edits_existing_stats_rig(mak
         await button(panel, 'Apply').callback(owner_event(1007))
         rule = active(engine)[0]
         assert (rule['part'], rule['mode'], rule['value'], rule['remaining']) == ('stats', 'extra_low', 4, 3)
-        await button(panel, 'Active rigs').callback(owner_event(1008))
+        await button(panel, 'Active controls').callback(owner_event(1008))
         chosen = select(panel, 'active')
         chosen._values = [str(rule['id'])]
         await chosen.callback(owner_event(1009))

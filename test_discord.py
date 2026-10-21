@@ -1,4 +1,6 @@
 import asyncio
+import json
+import re
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 import discord
@@ -21,7 +23,9 @@ def test_nine_slash_commands_and_minimal_intents(make_engine):
     async def check():
         bot = DiceBot(make_engine())
         assert [command.name for command in bot.tree.get_commands()] == ['roll', 'avatar', 'wallet', 'wallet-add', 'wallet-remove', 'wallet-transfer', 'wallet-manage', 'builder', 'custom']
-        payload = bot.tree.get_commands()[0].to_dict(bot.tree)
+        payloads = [command.to_dict(bot.tree) for command in bot.tree.get_commands()]
+        assert re.search(r'\b(?:rigger|rigging|rigs?)\b', json.dumps(payloads).lower()) is None
+        payload = payloads[0]
         assert [option['name'] for option in payload['options']] == ['dice']
         assert not payload['options'][0]['required']
         assert bot.tree.get_commands()[1].to_dict(bot.tree).get('options', []) == []
@@ -126,7 +130,7 @@ def test_only_creator_dm_receives_command_reply(make_engine):
         await bot.on_message(event)
         channel.send.assert_awaited_once()
         assert channel.send.await_args.kwargs['view'] is bot.rigger_panel
-        assert channel.send.await_args.kwargs['embed'].title == '🔒 Rigger'
+        assert channel.send.await_args.kwargs['embed'].title == '🔒 Creator Controls'
         assert engine.store.setting(1)['mode'] == 'off'
         await bot.close()
     asyncio.run(check())

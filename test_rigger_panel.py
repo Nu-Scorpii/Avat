@@ -43,15 +43,16 @@ def test_private_panel_is_opened_by_either_case_without_arming_a_roll(make_engin
     asyncio.run(check())
 
 
-def test_server_messages_other_players_and_wrong_prefix_never_get_a_panel(make_engine):
+def test_server_admins_other_players_and_wrong_prefix_never_get_a_panel(make_engine):
     async def check():
         bot = DiceBot(make_engine())
         dm = MagicMock(spec=discord.DMChannel)
         dm.send = AsyncMock()
         guild_channel = SimpleNamespace(send=AsyncMock())
-        for author, channel, content in [(2, dm, '!rigger'), (1, guild_channel, '!rigger'),
+        for author, channel, content in [(2, dm, '!rigger'), (2, guild_channel, '!rigger'), (1, guild_channel, '!rigger'),
                                          (1, dm, '!riggerish'), (1, dm, 'hello')]:
-            await bot.on_message(SimpleNamespace(id=1000, author=SimpleNamespace(id=author, bot=False),
+            await bot.on_message(SimpleNamespace(id=1000, author=SimpleNamespace(id=author, bot=False,
+                                                guild_permissions=SimpleNamespace(administrator=True)),
                                                 content=content, channel=channel))
         assert bot.rigger_panel is None
         dm.send.assert_not_awaited()
@@ -330,7 +331,7 @@ def test_panel_refresh_after_public_roll_does_not_leak_private_state(make_engine
         private = panel.message.edit.await_args.kwargs['embed'].to_dict()
         assert '0 active / 0 for this player' in private['footer']['text']
         assert not any(field['name'] == 'Last affected roll' for field in private['fields'])
-        await button(panel, 'Active rigs').callback(owner_event(1001))
+        await button(panel, 'Active controls').callback(owner_event(1001))
         assert any(field.name == 'Last affected roll' for field in panel.embed().fields)
         assert engine.store.setting(1)['mode'] == 'off'
         await bot.close()

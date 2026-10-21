@@ -28,12 +28,11 @@ HELP = ('**Create your own command**\nChoose New command, pick Character rolls, 
         'Only moderators award/remove money or record player transfers.\n\n'
         '**Draft → Preview → Publish**\nForm saves update the draft; Publish makes it live as its own slash command. '
         '/custom is also a catalogue and fallback. Unpublish before renaming. Archive is reversible with Restore. '
-        'Select a command again to refresh after another editor makes changes. Preview draws normal dice privately '
-        'without spending any rigs.\n\n'
+        'Select a command again to refresh after another editor makes changes. Preview draws ordinary sample dice privately '
+        'without saving a character result.\n\n'
         '**Limits**\n20 command slots per server, 20 entries per command, 200 base dice per character, '
         '25 outcomes per odds table. Normal dice expressions support modifiers and custom faces. '
-        'Server owner/Administrator/Manage Server can edit characters; server moderators can edit FAQs and shops. '
-        'Only the bot creator controls Rigger.')
+        'Server owner/Administrator/Manage Server can edit characters; server moderators can edit FAQs and shops.')
 
 
 class BuilderPanel(SessionView):

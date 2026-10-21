@@ -298,7 +298,7 @@ def test_active_manager_paginates_filters_edits_and_removes_one_rig(make_engine)
         bot = DiceBot(engine)
         panel = RiggerPanel(bot)
         panel.draft['target'] = '42'
-        await button(panel, 'Active rigs').callback(owner_event(1000))
+        await button(panel, 'Active controls').callback(owner_event(1000))
         assert panel.page == 'active' and len(select(panel, 'active').options) == PAGE_SIZE
         assert '12' in panel.embed().title
         await button(panel, 'Next').callback(owner_event(1001))
@@ -313,7 +313,7 @@ def test_active_manager_paginates_filters_edits_and_removes_one_rig(make_engine)
         panel.draft['value'] = 15
         await button(panel, 'Apply').callback(owner_event(1005))
         assert len(active(engine)) == 12 and active(engine)[0]['value'] == 15
-        await button(panel, 'Active rigs').callback(owner_event(1006))
+        await button(panel, 'Active controls').callback(owner_event(1006))
         choice = select(panel, 'active')
         choice._values = [str(active(engine)[0]['id'])]
         await choice.callback(owner_event(1007))
@@ -333,7 +333,7 @@ def test_active_manager_rejects_nonowners_and_refreshes_consumed_rigs(make_engin
         bot = DiceBot(engine)
         panel = RiggerPanel(bot)
         panel.message = SimpleNamespace(edit=AsyncMock())
-        await button(panel, 'Active rigs').callback(owner_event())
+        await button(panel, 'Active controls').callback(owner_event())
         choice = select(panel, 'active')
         choice._values = [str(active(engine)[0]['id'])]
         await choice.callback(owner_event(1001))
@@ -374,7 +374,7 @@ def test_every_stat_is_selectable_and_all_manager_pages_fit_discord_limits(make_
                         assert 1 <= len(component['options']) <= 25
                         assert all(len(option['label']) <= 100 and len(option.get('description', '')) <= 100
                                    for option in component['options'])
-        with pytest.raises(RollError, match='100 rigs'):
+        with pytest.raises(RollError, match='100 controls'):
             arm(engine, 'nation', 76, target=100)
         panel.stop()
         await bot.close()

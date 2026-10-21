@@ -5,8 +5,8 @@ import shlex
 from .avatar import PART_DICE, PART_LIMITS
 from .errors import RollError, require
 
-HELP = ('DM !rigger to use the private panel. Choose a player and roll, then Apply. '
-        'Use Luck % for 1–100% strength, Stat 1–6 for individual dice, and Active rigs '
+HELP = ('Use the private owner panel to choose a player and roll, then Apply. '
+        'Use Luck % for 1–100% strength, Stat 1–6 for individual dice, and Active controls '
         'to check or remove saved controls. Live DMs do not execute command arguments.')
 
 MAX_VALUE = 200_000_000_000
@@ -106,37 +106,37 @@ def parse_command(content):
     try:
         words = shlex.split(content)
     except ValueError as exc:
-        raise RollError('Close your quotation marks. Example: !Rigger face "heavy rain".') from exc
+        raise RollError('Close your quotation marks around the text face.') from exc
     args = words[1:]
     if not args:
         return 'help', None
     first = args.pop(0).lower()
     part = None
     if first == 'avatar':
-        require(args, 'Choose an Avatar part. Example: !Rigger avatar nation 30.')
+        require(args, 'Choose an Avatar part and value.')
         first = args.pop(0).lower()
         require(first in PART_DICE, 'Choose: iq, stats, nation, tribe, family, control, bending, element, bending_strength, or combat.')
     if first in PART_DICE:
         part = first
-        require(args, f'Give a number, shift, good, or bad. Example: !Rigger {part} 10.')
+        require(args, f'Give a number, shift, good, or bad for {part}.')
         first = args.pop(0).lower()
     if first in ('help', 'status', 'off'):
-        require(part is None, f'Use !Rigger {first} by itself.')
-        require(not args, f'Use !Rigger {first} by itself.')
+        require(part is None, f'Use {first} by itself.')
+        require(not args, f'Use {first} by itself.')
         return first, None
     if first in ('force', 'shift', 'face', 'luck'):
-        require(args, 'Give a value. Examples: !Rigger 15, !Rigger +3, !Rigger good.')
+        require(args, 'Give a value, such as 15, +3, or good.')
         value = args.pop(0)
         mode = first
         if first == 'luck':
             mode, value = value.lower(), None
-            require(mode in ('good', 'bad'), 'Use !Rigger good or !Rigger bad.')
+            require(mode in ('good', 'bad'), 'Choose good or bad.')
     elif first in ('good', 'bad'):
         mode, value = first, None
     elif NUMBER.fullmatch(first):
         mode, value = ('shift' if first.startswith(('+', '-')) else 'force'), first
     else:
-        raise RollError('Use !Rigger 15, !Rigger +3, !Rigger good, !Rigger bad, or !Rigger off. See !Rigger help.')
+        raise RollError('Choose an exact value, point shift, good, bad, or off.')
     if mode in ('force', 'shift'):
         require(isinstance(value, str) and NUMBER.fullmatch(value), 'Use a whole number, such as 15 or -2.')
         value = int(value)
@@ -160,7 +160,7 @@ def parse_command(content):
 def describe(setting):
     mode, value = setting['mode'], setting['value']
     if mode == 'off':
-        return 'Rigger is off. Rolls are normal.'
+        return 'Private controls are off. Rolls are normal.'
     label = {'force': f'Next final total: {value}', 'shift': f'Next total shift: {value:+d}' if mode == 'shift' else '',
              'face': f'Next text face: {value}', 'good': f'Good luck: {value or 100}% until removed',
              'bad': f'Bad luck: {value or 100}% until removed',

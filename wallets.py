@@ -1,4 +1,4 @@
-"""Server-scoped game currency. No dice calls or Rigger state are involved."""
+"""Server-scoped game currency with independent balances and receipts."""
 
 import json
 import re

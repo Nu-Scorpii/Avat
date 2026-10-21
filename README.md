@@ -1,201 +1,80 @@
-# Simple Discord Dice Bot · 4.1.0
+# Simple Discord Dice Bot · 4.1.1
 
-Players use `/roll`, `/avatar`, `/wallet`, and their server's custom commands. Server staff use `/builder` to create character rolls, FAQs, and shops. Moderators use separate currency commands to add, remove, or transfer money. Creator roll controls work privately in DMs.
+This bot provides custom dice, Avatar character creation, server currencies, and a workshop for server-specific character rolls, FAQs, and shops. Its public Discord interface contains nine global slash commands plus any custom commands published by a server.
 
-## New: your server's command workshop
+## Commands
 
-Run **`/builder` → New command**. Choose **Character rolls**, **FAQ / guide**, or **Shop**. Give it a name such as `hero`, `rules`, or `market`; add entries, Preview, then Publish. Players can use its own slash command (`/hero`, `/rules`, `/market`) or browse **`/custom`**. These names are examples you create, not additional built-ins.
+| Command | Who can use it | Purpose |
+|---|---|---|
+| `/roll [dice]` | Everyone | Roll any supported dice expression |
+| `/avatar` | Everyone | Generate an Avatar character |
+| `/wallet [wallet]` | Everyone | View your balance, history, and items |
+| `/wallet-add` | Server moderators | Add currency to a player |
+| `/wallet-remove` | Server moderators | Remove currency from a player |
+| `/wallet-transfer` | Server moderators | Transfer currency between players |
+| `/wallet-manage` | Bot creator | Create or rename server wallets |
+| `/builder` | Server staff | Build character rolls, FAQs, and shops |
+| `/custom [command]` | Everyone | Browse or run published server commands |
 
-Character templates support separate named groups such as **Origin · 1d5**, **Stats · 6d20**, and **Power · 1d20+2**, all in one invocation. Add odds tables with named outcomes and exact relative weights, plus optional conditions based on earlier results. Pick a display title, introduction, and accent colour. The six stat dice stay visible as six values.
+## Dice rolls
 
-**Named probabilities** are available under **Add outcome**. Define a type such as Nation or Rarity and give each result an exact chance, for example `Common | 70%`, `Rare | 25%`, and `Legendary | 5%`. The chances must total 100%. Players see only the selected name—no numeric die, expression, or total. You can combine several probability types with normal dice groups in one command, or publish a command containing just one probability type. Conditions and all applicable Rigger controls work on these outcomes. **Relative weights** remains available for named results that also display a numeric draw.
+`/roll` has one optional field. Leave it blank for `1d20`, or enter expressions such as:
 
-Server owners, Administrator, or Manage Server can create/edit character templates. Moderators can also create/edit FAQs and shops. Published commands are available to all server players, subject to Discord's own application-command permissions. Shops charge the buyer's chosen server currency wallet after a confirmation and save purchases in **My items**. They have unlimited stock. FAQs use a question dropdown.
-
-**Rigger:** DM `!rigger` → **Custom rolls** → choose the server's published template → whole character or named roll. All applicable modes, stacked controls, and counted/permanent durations work. The **Standard rolls** button returns to `/roll` and `/avatar`, including Bending Strength. Only the bot creator can use Rigger.
-
-Drafts, published commands, shop inventories, existing rigs, and wallet data survive redeploys. The built-in Avatar command is preserved. Read **[BUILDER_GUIDE.md](BUILDER_GUIDE.md)** for a complete walkthrough, sample odds and conditions, permissions, and limits.
-
-## Players: `/roll`
-
-Type `/roll`, select its **dice** field, and enter your roll. There is just one field. Add `+2` for a bonus or `-2` for a penalty in the same expression. Leave it blank for **1d20**. Discord command names are lowercase.
-
-| Enter in dice | What it does |
+| Expression | Result |
 |---|---|
-| `1d100` | Roll one 100-sided die |
+| `1d100` | One 100-sided die |
 | `1d100+2` | Roll, then add 2 |
 | `1d100-2` | Roll, then subtract 2 |
-| `6d20+3` | Roll six d20s, then add 3 once |
-| `2d17+1d8-3` | Mix dice sizes, then subtract 3 |
+| `6d20+3` | Six d20s plus 3 once |
+| `2d17+1d8-3` | Mixed dice sizes and a penalty |
+| `3d20kh1+2` | Keep the highest d20, then add 2 |
+| `3d20kl1-2` | Keep the lowest d20, then subtract 2 |
+| `1d["sun","rain","rain","storm"]` | Weighted text faces |
 
-Examples show the value to put in Discord's single dice field:
+The result shows every public die, a Bonus or Penalty line when present, and the final total. Limits are 100 dice, 20 terms, 1–1 billion sides, and 500 characters per expression. Text faces use JSON strings and cannot use arithmetic.
 
-```text
-/roll
-/roll dice:1d100+2
-/roll dice:1d100-2
-/roll dice:2d17+1d8-3
-```
+## Avatar character creation
 
-The message shows every die, any **Bonus** or **Penalty**, and the final **Total**. No modifier line is added for a plain roll. Multiple fixed modifiers are shown individually with their net change. For example, if `1d100-2` rolls 50:
+`/avatar` rolls IQ (`1d20`), six stats (`6d20`), nation (`1d100`), the applicable origin detail, and bending (`1d100`). Results of 61–100 receive bending and a separate Bending Strength `1d20`; results of 1–60 receive a non-bender combat style.
 
-```text
-🎲 Hero rolled 1d100-2
-
-Rolls: 50
-Penalty: -2
-
-Total: 48
-```
-
-Dice values use code formatting and the heading and total are bold. Long rolls are split into readable messages. Input mistakes receive private errors.
-
-Advanced rolls still use that same field:
-
-| Enter in dice | What it does |
-|---|---|
-| `3d20kh1+2` | Keep the highest of three d20s, then add 2 |
-| `3d20kl1-2` | Keep the lowest, then subtract 2 |
-| `2d[0,1,1,5]+2` | Roll two weighted custom dice, then add 2 |
-| `1d["sun","rain","rain","storm"]` | Roll a text result; repeated faces add weight |
-| `1d[-5,8]+1d[1,2,5]` | Mix custom numeric dice |
-
-Custom lists use JSON; text labels need double quotes. Face spelling and capitalization are preserved. Highest/lowest uses one positive dice pool. A die containing any text face has no numeric total and cannot use arithmetic or highest/lowest.
-
-Limits: 100 dice, 1–1 billion sides, 20 expression terms, and a **500-character dice field**, including any custom lists. Lists have at most 1,000 faces each, within that expression limit; text labels have 1–40 characters. Fixed modifiers are whole numbers within ±1 billion. No programming expressions are evaluated.
-
-## Players: `/avatar`
-
-Run `/avatar` in a server. There are no options to fill in. The bot rolls the whole character in this order:
-
-1. **IQ:** 1d20.
-2. **Stats:** six separate results from 6d20, in order. Assign your own stat names; the bot does not invent them.
-3. **Nation:** 1d100, followed by its applicable origin detail.
-4. **Bending:** 1d100. **61–100** means bending; **1–60** means non-bender.
-5. A Nomad bender rolls an element; a non-bender rolls a combat style.
-6. **Bending Strength:** every bender rolls a separate **1d20**. Non-benders skip this roll entirely.
-
-| Nation roll | Origin | Extra origin roll |
+| Nation roll | Origin | Extra roll |
 |---|---|---|
-| 1–25 | Fire Nation | 1d100 for family |
-| 26–50 | Water Tribes | 1d3: 1 Southern, 2 Northern, 3 Swamp |
-| 51–75 | Earth Kingdom | 1d20: 1–15 village under Fire Nation control, 16–20 no |
-| 76–100 | Nomad | None |
+| 1–25 | Fire Nation | Family: 1–49 Civilian, 50–79 Military, 80–94 High ranking, 95–100 Royal |
+| 26–50 | Water Tribes | `1d3`: Southern, Northern, or Swamp |
+| 51–75 | Earth Kingdom | `1d20`: 1–15 under Fire Nation control, 16–20 not controlled |
+| 76–100 | Nomad | No origin-detail die |
 
-Fire Nation families use **1–49 Civilian, 50–79 Military, 80–94 High ranking, 95–100 Royal**. The supplied ranges overlapped at 50, 80, and 95; this resolves those boundaries in favor of the higher tier.
+Fire Nation, Water Tribes, and Earth Kingdom benders receive their matching element. A Nomad bender rolls `1d3` for Fire, Water, or Earth. There is no Air bending. Non-benders roll `1d100`: Sword 1–20, Bow 21–40, Fan 41–60, Fists 61–80, or Pressure point 81–100.
 
-A Fire Nation bender gets Fire bending, a Water Tribes bender gets Water bending, and an Earth Kingdom bender gets Earth bending. **Only a Nomad whose final bending check is above 60** rolls **1d3: 1 Fire, 2 Water, 3 Earth**. A result of exactly 60 is a non-bender and rolls combat style instead. Nomad is an origin, not an Air Nomad. **There is no Air bending.** Every character makes one bending check; there is no second chance check for an element.
+## Server workshop
 
-Non-benders roll **1d100: 1–20 Sword, 21–40 Bow, 41–60 Fan, 61–80 Fists, 81–100 Pressure point**. The shared endpoint 80 belongs to Fists. Inapplicable dice are never rolled: no tribe outside Water Tribes, no family outside Fire Nation, no village control outside Earth Kingdom, no combat style for benders, and no extra element roll except for Nomad benders.
+Run `/builder`, select **New command**, and choose:
 
-The message shows the six stat values and each applicable category with its actual roll. Benders also get **Bending Strength: 1–20**, separate from IQ and the six stats; non-benders have no Bending Strength line. It is a character creation result, not a saved or tracked character sheet. Repeat `/avatar` only when your GM permits a new character roll.
+- **Character rolls** for multiple named dice groups, named probability results, relative weights, and conditional follow-up rolls.
+- **FAQ / guide** for browsable questions and answers.
+- **Shop** for wallet-backed purchases and saved player inventories.
 
-For example, a bender's message includes `Bending Strength: 17 (1d20)`. The stat does not change the existing bending threshold or determine the element.
+A character command can combine `1d5`, `6d20`, a separate `1d20+2`, and any number of named outcome types in one result. **Named probabilities** use exact chances totaling 100% and display only the selected name. **Relative weights** use ratios and display the selected name with a numeric draw.
 
-## Wallets: simple commands
+Changes remain drafts until **Publish**. **Preview** produces a private sample without saving a character result or purchasing anything. Each server owns its definitions, and published commands are restored when the bot reconnects. See [BUILDER_GUIDE.md](BUILDER_GUIDE.md) for the complete workflow.
 
-**Everyone can use `/wallet`.** It opens your own private balance card with a wallet dropdown, History, and Refresh. There are no money-editing buttons in this player command, even for moderators or the creator. Existing wallets stay available. A server without a wallet automatically gets **Main / coins**, with every player starting at zero; no creator setup is required to check your balance.
+## Wallets and shops
 
-| Command | Who can use it | What it does |
-|---|---|---|
-| `/wallet [wallet]` | Every player | Your balance, recent activity, and paged history |
-| `/wallet-add player amount [wallet] [reason]` | Server moderators | Add money to a selected player |
-| `/wallet-remove player amount [wallet] [reason]` | Server moderators | Remove money without allowing an overdraft |
-| `/wallet-transfer sender receiver amount [wallet] [reason]` | Server moderators | Move money between two players for a session deal |
-| `/wallet-manage` | Bot creator | Create wallets or edit names and currency labels |
+Every server receives a default **Main / coins** wallet when needed. Players use `/wallet`; only members with real moderation permissions can add, remove, or transfer currency. Transfers debit one player and credit the other in one transaction. Wallets, balances, histories, shop inventories, and duplicate-request receipts persist on the Railway volume.
 
-Examples show the values to choose in Discord's slash options:
-
-```text
-/wallet
-/wallet-add player:@Alex amount:100 reason:Quest reward
-/wallet-remove player:@Alex amount:25 reason:Shop purchase
-/wallet-transfer sender:@Alex receiver:@Sam amount:75 reason:Sword purchase
-/wallet-transfer sender:@Alex receiver:@Sam amount:75 wallet:Avatar reason:Sword purchase
-/wallet-manage
-```
-
-Select real members with Discord's player picker; select wallet names from the autocomplete suggestions, or type an exact wallet name. If there is one wallet, money commands can omit it. **If there are several wallets, money commands require you to choose one** to avoid changing the wrong campaign's money. `/wallet` can omit it and lets you switch with the dropdown.
-
-**Only actual server moderators can add, remove, or transfer money.** Accepted permissions are Administrator, Manage Server, Manage Messages, Timeout Members (Moderate Members), Kick Members, or Ban Members. Permission checks run in the bot for every command, including after member checks. Being the bot creator or having a role named Mod does not bypass them. `/wallet` has no moderator permission restriction; server admins can still control application-command access through Discord's own server settings.
-
-**Transfers pay the receiver from the sender's balance.** They do not create money. Both players must be different current human members of the same server, using the same named currency wallet. An unaffordable payment or a receiver exceeding the balance limit changes neither account. Debit, credit, both history entries, and the duplicate-request receipt save together. Two simultaneous payments cannot spend the same money twice.
-
-Every change records the moderator, amount, reason, date, and resulting balance. Transfers also appear in both players' histories with the other player's ID and the same deal number. Moderator confirmations are private, and players see their updated balance with `/wallet` or Refresh. Reasons default to Session reward, Session expense, or Session deal if omitted.
-
-The creator uses **`/wallet-manage`**, then New wallet or Edit wallet to name up to **25 wallets per server** and their currency labels. The automatic Main wallet can be renamed. Renaming keeps all balances and history; changing a label does not convert money. Wallets and balances remain separate for each server, wallet, and player.
-
-Panels close after ten minutes of inactivity or a restart; use `/wallet` again. All saved wallets, balances, old history, and durable currency receipts survive redeploys. Existing version-3.5 data migrates without resetting anything. Wallet commands do not draw dice, apply Rigger, or spend rig uses. Whole currency units and the existing **1 trillion** per-player balance limit remain.
-
-## Creator
-
-Open the bot's DMs and send **`!rigger`**. Choose a player, roll, and change, enter a value or pick a preset, choose **Duration**, then press **Apply**. Enter a number such as `3`, or `permanent`. `!Rigger` works too. No command arguments or server IDs are needed. Appended old arguments open the panel without arming anything.
-
-Only the account configured as `BOT_OWNER_ID` can open the panel, use its buttons, or submit its forms. It never appears in slash menus. Server messages are ignored. Choose the exact Avatar part when modifying `/avatar`; choosing `/roll` affects only the ordinary `/roll` command. Use **Custom rolls** for server-built character templates. Presets include nations, tribes, family tiers, bender/non-bender, elements, and combat styles. Whole-character Avatar controls support good/bad luck and extra dice.
-
-The first draft targets **you**; reopening resumes the most recently added rig as a draft. **Choose player** accepts another player's user ID or mention and verifies their account. Targets follow players across every server. Other players cannot operate the controls but can receive rigs you set for them. Only **Apply** changes live settings.
-
-**Good/bad luck has 1–100% strength.** Use **Luck %** to enter `37` or `37%`, or pick 1/25/50/75/100 from the menu. Each numeric die moves that fraction toward its best/worst legal face, rounded to the nearest legal value; ties round toward the extreme. **50% means halfway; 100% gives the best/worst face.** Strength is not a chance of activation. Tiny strengths can round to no change. Signed dice respect the final total; bonuses stay unchanged; text dice skip luck.
-
-**Extra dice secretly keeps the highest or lowest sampled result.** Choose **Extra dice · keep highest** or **Extra dice · keep lowest**, then press **Extra dice** and enter **1–100 extra dice per original die**. A new draft starts at 4 extra dice: a normal `1d20` really draws five candidates and shows just one. Set Duration, then Apply. The result is still random among real draws; it does not automatically force the maximum or minimum possible face.
-
-| Player rolls | With 4 extra dice per result |
-|---|---|
-| `1d20` | Five d20 candidates; show the highest or lowest one |
-| `1d100+2` | Five d100 candidates; show the selected die, Bonus +2, and total |
-| `6d20` | Six groups of five d20 candidates; show six selected results |
-| `1d6+1d100` | Five d6 candidates and five d100 candidates; show one of each |
-
-Every supported die size works, including custom numeric and weighted faces. Repeated faces retain their weight. For **text or mixed faces**, the first distinct listed face is lowest and the last distinct face is highest; repeats affect weight, not rank. Numeric faces use their numerical values. Selection compares each die face before signed arithmetic, bonuses, or public kh1/kl1 selection. Discarded candidates and the hidden extra count never appear in player messages. Extra dice also works on individual Avatar parts, Stat 1–6, All six stats, or Whole character.
-
-**Several rigs can affect one Avatar character.** Apply adds or updates only the same player + roll + kind of change. For example, force Nation to Water Tribes, force Bending to 100, and set each **Stat 1–6** independently to 1–20. Extra dice, force, shift, and percentage luck can coexist on one part. Good/bad share one luck slot; extra-highest/extra-lowest share a separate extra-dice slot. A specific part overrides whole-character settings of the same kind; a stat overrides all-six-stats, then whole-character. Each part applies **extra dice → percentage luck → shift → exact force**. Force wins.
-
-**Every rig has its own duration.** Use **Duration** to set 1–1,000,000 uses, or `permanent` until removed. One `/roll` command spends one use, even for a pool of dice. One `/avatar` character spends one use of each affected rig: whole-character and all-six-stats luck or extra dice affect every applicable die before their counters decrease once. Each Stat 1–6 rig can have a different duration. Finite conditional-part rigs reserve character uses, so a skipped part also spends one use of that rig without drawing extra dice. Permanent rigs remain active. Other players, other command scopes, invalid input, recent duplicate requests, skipped text luck, and fully overridden luck/extra-dice rigs do not spend uses. Impossible changes spend one use and explain privately.
-
-Without a chosen duration, force/shift/text defaults to one use; percentage luck and extra dice default to permanent. Existing rigs retain those defaults. Reopening or editing a rig loads its current remaining uses into the draft. **Apply sets only that slot's allowance to the duration shown**, so reapplying can replenish it; duplicate deliveries of the same Apply cannot. Check the Duration field before applying a reused draft.
-
-**Stat 1–6** means the first through sixth displayed results. Force, shift, and percentage luck change that existing result; extra-dice mode draws additional candidates for just that slot. **All six stats** and **Whole character** support percentage luck and extra dice; choose individual stats for exact values or point shifts.
-
-The compact editor shows **Player, Roll, Change, and Duration**, with active counts in its footer. Preset menus appear only when useful. Press **Active rigs** for the full list, remaining uses, last affected roll, filtering, editing, removal, Refresh, and Clear all. Private status refreshes after rolls. Up to 100 independent rigs can be saved.
-
-For custom `/roll`, **Force** sets the final total including the typed modifier. For example, force 50 with `1d100+2` produces a legal die result of 48, shows Bonus +2, and totals 50. A shift changes the total while keeping the declared bonus or penalty intact. Luck, individual Avatar stats, stacking, and durations still work.
-
-Panels close after ten minutes of inactivity or when reopened; saved rigs stay active. After a restart, DM `!rigger` for a fresh panel. Old version-3 settings migrate with their target and last status intact; old luck without a percentage becomes **100% strength**. Legacy unrestricted or six-stat-total rules remain visible and usable once; remove them to create explicit command/part controls. See `CREATOR_ONLY.md` for the guide.
-
-**Bending Strength controls:** choose **/avatar · Bending Strength** in `!rigger`. Force 1–20, add/subtract points, percentage luck, and extra-dice highest/lowest all work, with stacking and durations. Whole-character luck/extra dice includes this new stat; All six stats affects only the original six dice. The final bending check decides whether strength is rolled. A strength rig cannot create bending. For a non-bender, the die is skipped: finite strength rigs spend one character use, while permanent rigs stay. Older saved character receipts replay without adding a new random result.
+Shops use one server wallet, have unlimited stock, and require the buyer to review and confirm the quantity and current price. Purchases update the balance, ledger, and inventory together.
 
 ## Railway
 
-For this existing service, retain its attached volume and database path, token, and creator ID. Replace these **four files at the repository root**, then deploy the latest commit:
+The runtime needs `Dockerfile`, `requirements.txt`, `railway.toml`, and `bot.pyz` at the repository root. Set `DISCORD_TOKEN` and `BOT_OWNER_ID`. Attach one persistent volume at `/data`; the bot automatically stores its SQLite database there. `BOT_DB_PATH=/data/ua.sqlite3` is optional.
+
+Keep one continuously running replica. No public domain, HTTP healthcheck, server ID, Administrator permission, or privileged Gateway intent is needed. Railway starts the bot with `python bot.pyz`, and the bundle validates all nine global commands during the image build.
+
+## Local validation
+
+Use Python 3.12:
 
 ```text
-Dockerfile
-requirements.txt
-railway.toml
-bot.pyz
-```
-
-Upload the extracted files, rather than the download ZIP. Keep `bot.pyz` as a file. It already contains the entire minimal runtime, so a flattened GitHub upload cannot cause a missing `ua_bot` folder build error. Railway runs `python bot.pyz`; the Dockerfile validates it during the build. Repository Root Directory should be blank or `/`. Keep one replica and a continuously running service; no public domain or HTTP healthcheck is needed.
-
-For a new service, attach a persistent volume at **`/data`**. Set these variables through your own dashboard:
-
-| Variable | Value |
-|---|---|
-| `DISCORD_TOKEN` | Your existing Discord bot token |
-| `BOT_OWNER_ID` | Your own Discord user ID |
-| `BOT_DB_PATH` | Optional: `/data/ua.sqlite3`; omit it to use the actual attached volume automatically |
-
-Railway supplies `RAILWAY_VOLUME_MOUNT_PATH`; do not set it manually. The database must be inside that mount. A local default is `data/ua.sqlite3`. No server ID is needed; a previous `DISCORD_GUILD_ID` is ignored. The bot registers nine global commands and restores each server's published custom commands when it connects, replacing obsolete guild overrides. Discord clients may need a refresh before their cached menus update.
-
-The bot preserves old campaign tables on the volume without loading them. Current rigs and the last 1,000 dice receipts use separate tables. All dice, rig consumption, and a receipt for one Avatar character commit together. Wallet balances, history, and durable currency receipts use their own tables. Redeploys preserve rigs and wallets. A repeated recent dice interaction returns the same result without consuming or rearming newer rigs; duplicate currency submissions are remembered independently of the dice cache.
-
-Install the Discord application **to your server** with `bot` and `applications.commands` scopes; adding it only to your account does not put the bot in the server. Permit View Channel, Send Messages, and Embed Links for the cards, and let players use application commands. Leave the Interactions Endpoint URL empty. No privileged Gateway intents or Administrator permission are needed. Creator controls and notices require that your account can DM the bot. A startup log showing **0 server(s)** means the connected bot was not in any servers when it connected: check its bot ID against the bot in your server and use the correct server install.
-
-## Local editing and checks
-
-Use Python 3.12, extract the full source package, and run:
-
-```sh
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
 python -m ua_bot --check
@@ -203,18 +82,12 @@ python build_release.py
 python bot.pyz --check
 ```
 
-For local play, copy `.env.example` to `.env`, fill in your token and creator ID, and run `python bot.pyz`. Keep credentials out of source uploads. Rebuild `bot.pyz` after editing source; Railway runs the bundle, not the loose source files. The full ZIP has the proper `ua_bot/` and `tests/` folders for editing. Four-file uploads are for deployment only.
+Never commit a real Discord token. The included `.env.example` contains placeholders only.
 
 ## Troubleshooting
 
-- Bot online but `/roll`, `/avatar`, or `/wallet` missing: check its server installation, `applications.commands` scope, and channel permissions; refresh Discord's command menu.
-- Checking a new server: `/wallet` creates an empty Main wallet automatically. The creator can rename it or create more with `/wallet-manage`.
-- Adding or moving money: use `/wallet-add`, `/wallet-remove`, or `/wallet-transfer` with actual server moderation permissions. The player balance panel only shows your money and history. Choose a wallet if several exist.
-- Old commands still visible: refresh Discord. Runtime logs report server-command sync failures; a reconnect retries them. Published custom commands are preserved.
-- Volume error: attach the volume to this service and place the database under its real mount, then redeploy. Retain the original database file when updating.
-- Private panel not opening: DM `!rigger` from the exact account identified by `BOT_OWNER_ID`; allow DMs from the bot. This variable must contain your user ID, not the application ID. There is no public `/rigger` command.
-- Old or expired buttons: DM `!rigger` again. Reopening does not arm, clear, or rearm a saved setting.
-- A rig did not apply: open **Active rigs**, check its player ID, roll, value/strength, and remaining uses. Press **Apply** after draft edits. Specific luck overrides broader luck; exact force wins over luck or a shift. Small percentages may round to no change. `/roll` rigs do not affect `/avatar`.
-- A forced result was impossible or its Avatar part was skipped: the regular roll remains valid; finite rigs spend one use and expire at zero, while permanent rigs stay. **Active rigs → Last affected roll** and your private notice explain why.
-
-Official API reference: https://discordpy.readthedocs.io/en/stable/interactions/api.html
+- Missing slash commands: refresh Discord, confirm the application was installed to the server with `bot` and `applications.commands`, and allow application commands in the channel.
+- Bot offline: check the latest Railway deployment and its startup logs.
+- Volume error: attach the persistent volume at `/data`, then redeploy.
+- Wallet command rejected: select a wallet when the server has several and confirm the acting member has an accepted moderation permission.
+- Published custom command missing: use `/custom` immediately, then republish or reconnect to retry the server slash-menu sync.

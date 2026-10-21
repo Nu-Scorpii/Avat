@@ -115,7 +115,7 @@ class DiceBot(discord.Client):
 
     async def setup_hook(self):
         synced = await self.tree.sync()
-        log.info('Registered %s slash commands globally (v%s); Avatar, Rigger, wallets, and server builder ready.', len(synced), __version__)
+        log.info('Registered %s slash commands globally (v%s); Avatar, wallets, and server builder ready.', len(synced), __version__)
 
     def custom_command(self, record):
         async def callback(interaction: discord.Interaction):
@@ -174,7 +174,7 @@ class DiceBot(discord.Client):
         except Exception as exc:
             log.error('Creator panel failed: %s.', type(exc).__name__)
             try:
-                await message.channel.send('Could not open the panel. Try DMing !rigger again.', allowed_mentions=NO_MENTIONS)
+                await message.channel.send('Could not open the private panel. Send the private trigger again.', allowed_mentions=NO_MENTIONS)
             except discord.HTTPException:
                 pass
 

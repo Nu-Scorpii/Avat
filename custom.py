@@ -18,7 +18,7 @@ MAX_TEMPLATE_DICE = 200
 KINDS = ('roll', 'faq', 'shop')
 OUTCOME_TYPES = ('table', 'probability')
 RESERVED = {'roll', 'avatar', 'wallet', 'wallet-add', 'wallet-remove', 'wallet-transfer',
-            'wallet-manage', 'builder', 'custom', 'rigger', 'dice'}
+            'wallet-manage', 'builder', 'custom', 'dice'}
 SLUG = re.compile(r'[a-z][a-z0-9_-]{0,31}\Z')
 FIELD = re.compile(r'field_[a-f0-9]{12}\Z')
 OPS = ('==', '!=', '>=', '<=', '>', '<')
@@ -223,8 +223,8 @@ def roll_definition(document, draw):
         values = values_of(result)
         completed[entry['id']] = outcome if outcome is not None else result['total'] if result['total'] is not None else values[0] if len(values) == 1 else values
         if entry['type'] == 'probability':
-            # The internal sample exists only to share the Rigger pipeline.
-            # Neither the player payload nor its replay receipt exposes a die.
+            # The internal sample selects the named outcome. Neither the player
+            # payload nor its replay receipt exposes that implementation detail.
             results.append({'id': entry['id'], 'name': entry['name'], 'type': 'probability', 'outcome': outcome})
         else:
             results.append({'id': entry['id'], 'name': entry['name'], 'dice': result, 'outcome': outcome})
@@ -270,7 +270,7 @@ class CustomCommands:
                                    (str(self.owner_id), identity)).fetchone()
         require(row is not None, 'This custom command no longer exists.')
         result = self.get(int(row['guild']), identity, published=True)
-        require(result['kind'] == 'roll', 'Rigger works on character rolls, not FAQs or shops.')
+        require(result['kind'] == 'roll', 'Private roll controls work on character rolls, not FAQs or shops.')
         return result
 
     def rig_label(self, scope, part=None):

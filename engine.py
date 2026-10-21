@@ -2,7 +2,8 @@
 
 import json
 from .avatar import STAT_PARTS, create_character
-from .controls import COMMAND, HELP, MAX_RIGS, category, describe, empty_setting, panel_setting, parse_command, player_id, rule_key
+from .controls import COMMAND, HELP, MAX_RIGS, category, describe, empty_setting, panel_setting, parse_command, player_id, rule_key, is_custom_scope
+from .custom import CustomCommands, roll_definition, step_plan, validate
 from .dice import RNG, prepare, values_of
 from .luck import extra_dice_result, luck_result
 from .solver import Unavailable, force_face, force_total
@@ -13,6 +14,7 @@ class DiceEngine:
     def __init__(self, store, owner_id, rng=RNG):
         require(type(owner_id) is int and owner_id > 0, 'BOT_OWNER_ID must be your Discord user ID.')
         self.store, self.owner_id, self.rng = store, owner_id, rng
+        self.customs = CustomCommands(store, owner_id)
 
     def control_status(self, author_id, *, is_dm):
         require(is_dm and author_id == self.owner_id, 'These controls are private to the bot creator.')
@@ -24,6 +26,14 @@ class DiceEngine:
         require(is_dm and author_id == self.owner_id, 'These controls are private to the bot creator.')
         new = panel_setting(mode, value, self.owner_id if target is None else target,
                             scope=scope, part=part, uses=uses)
+        if mode != 'off' and is_custom_scope(scope):
+            template = self.customs.rig_template(scope)
+            if part is not None:
+                entry = next((s for s in template['published']['entries'] if s['id'] == part), None)
+                require(entry is not None, 'That custom roll was removed. Choose its current template again.')
+                plan = step_plan(entry)
+                require(mode != 'face' or not plan.numeric, 'Use Force with an outcome preset for numeric dice and odds tables.')
+                require(mode not in ('force', 'shift') or plan.numeric, 'This roll uses text faces. Choose Text face or Extra dice.')
         signature = json.dumps(['apply', author_id, new], sort_keys=True, ensure_ascii=False)
         with self.store.transaction():
             cached = self.store.receipt('panel', request_id, signature)
@@ -96,7 +106,10 @@ class DiceEngine:
         return self.roll_plan(user_id, guild_id, plan, request_id=request_id)
 
     @staticmethod
-    def _matches(rule, user_id, part):
+    def _matches(rule, user_id, part, scope=None):
+        if is_custom_scope(scope):
+            return ((rule['target'] is None or rule['target'] == str(user_id)) and rule['scope'] == scope
+                    and (rule['part'] is None or rule['part'] == part))
         return ((rule['target'] is None or rule['target'] == str(user_id))
                 and rule['scope'] in ('all', 'avatar' if part is not None else 'roll')
                 and (rule['part'] is None or rule['part'] == part
@@ -110,11 +123,11 @@ class DiceEngine:
                 rule['remaining'] -= 1
         controls['rules'] = [rule for rule in controls['rules'] if rule['remaining'] != 0]
 
-    def _draw(self, user_id, plan, controls, used, *, part=None, natural=None, exact_only=False):
+    def _draw(self, user_id, plan, controls, used, *, part=None, natural=None, exact_only=False, scope=None, label=None):
         """Apply extra dice, luck, shift, then force; only one rule of each kind wins."""
         natural = plan.roll(self.rng) if natural is None else natural
         result, notices, records = natural, [], []
-        candidates = [r for r in controls['rules'] if self._matches(r, user_id, part)
+        candidates = [r for r in controls['rules'] if self._matches(r, user_id, part, scope)
                       and (not exact_only or r['part'] == part and category(r) not in ('luck', 'extra'))
                       # An old unrestricted exact control changes only the first
                       # eligible part of an Avatar, as it did before durations.
@@ -151,12 +164,12 @@ class DiceEngine:
                 duration = ('this rig stays permanent' if rule['remaining'] is None else
                             'this one-use rig is cleared' if rule['remaining'] == 1 else
                             f"one use is spent; {rule['remaining'] - 1} remain")
-                notices.append(f"{('Avatar ' + part + ': ') if part else ''}Rig #{rule['id']} could not apply: "
+                notices.append(f"{((label or 'Avatar ' + part) + ': ') if part else ''}Rig #{rule['id']} could not apply: "
                                f'{exc}. {unchanged}; {duration}.')
             detail = f"{mode} {value}{'%' if kind == 'luck' else ''}"
             if kind == 'extra':
                 detail = f"{value} extra dice each · keep {'highest' if mode == 'extra_high' else 'lowest'}"
-            record = f"{part or '/roll'} · #{rule['id']} {detail}: {before['total']} → {result['total']}"
+            record = f"{label or part or '/roll'} · #{rule['id']} {detail}: {before['total']} → {result['total']}"
             if kind == 'luck' and not plan.numeric:
                 record += ' · Luck skipped: text dice have no numeric order.'
             elif mode == 'face':
@@ -235,4 +248,37 @@ class DiceEngine:
                 self.store.save_controls(self.owner_id, controls)
             outcome = {'character': character, 'notice': '\n'.join(notices) or None, 'replayed': False}
             self.store.remember('avatar', request_id, signature, outcome)
+            return outcome
+
+    def custom_roll(self, user_id, guild_id, command_id, *, request_id=None):
+        signature = json.dumps([self.owner_id, str(user_id), str(guild_id), command_id, 'custom-v1'])
+        with self.store.transaction():
+            cached = self.store.receipt('custom', request_id, signature)
+            if cached is not None:
+                return {**cached, 'replayed': True}
+            command = self.customs.get(guild_id, command_id, published=True)
+            require(command['kind'] == 'roll', 'Choose a character roll command.')
+            document = validate(command['published'], 'roll', publishing=True)
+            scope, used, drawn = f'custom:{command_id}', set(), set()
+            controls = self.store.controls(self.owner_id)
+            notices, records = [], []
+            def draw(entry, plan):
+                drawn.add(entry['id'])
+                result, notes, history = self._draw(user_id, plan, controls, used, part=entry['id'], scope=scope,
+                                                   label=f"/{command['name']} · {entry['name']}")
+                notices.extend(notes)
+                records.extend(history)
+                return result
+            character = roll_definition(document, draw)
+            for rule in controls['rules']:
+                if (rule['scope'] == scope and rule['part'] is not None and rule['part'] not in drawn
+                        and rule['target'] in (None, str(user_id)) and rule['remaining'] is not None):
+                    used.add(rule['id'])
+                    notices.append(f"/{command['name']} · Rig #{rule['id']}: its roll was skipped or removed; one character use spent.")
+            self._consume(controls, used)
+            if records or notices:
+                controls['last'] = (f'User {user_id} · server {guild_id}\n' + '\n'.join(records + notices))[:1000]
+                self.store.save_controls(self.owner_id, controls)
+            outcome = {'character': character, 'notice': '\n'.join(notices) or None, 'replayed': False}
+            self.store.remember('custom', request_id, signature, outcome)
             return outcome

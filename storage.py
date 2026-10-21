@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import json
 from pathlib import Path
 import sqlite3
-from .controls import empty_controls, empty_setting, MAX_VALUE, MAX_RIGS, MAX_USES, MAX_EXTRA_DICE, EXTRA_MODES, PASSIVE_MODES, PART_DICE, PART_LIMITS, rig_uses, rule_key
+from .controls import empty_controls, empty_setting, MAX_VALUE, MAX_RIGS, MAX_USES, MAX_EXTRA_DICE, EXTRA_MODES, PASSIVE_MODES, PART_DICE, PART_LIMITS, rig_uses, rule_key, is_custom_scope, CUSTOM_FIELD
 from .errors import require
 
 CACHE_LIMIT = 1000
@@ -19,6 +19,16 @@ class Store:
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('PRAGMA busy_timeout=5000')
         self.db.executescript('''
+            CREATE TABLE IF NOT EXISTS server_commands_v1 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, owner TEXT NOT NULL, guild TEXT NOT NULL,
+                name TEXT NOT NULL, kind TEXT NOT NULL, draft TEXT NOT NULL, published TEXT,
+                revision INTEGER NOT NULL DEFAULT 1, live_revision INTEGER NOT NULL DEFAULT 0,
+                archived INTEGER NOT NULL DEFAULT 0, actor TEXT NOT NULL,
+                UNIQUE(owner,guild,name));
+            CREATE TABLE IF NOT EXISTS shop_inventory_v1 (
+                command INTEGER NOT NULL, item TEXT NOT NULL, player TEXT NOT NULL,
+                name TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity >= 0 AND quantity <= 1000000),
+                PRIMARY KEY(command,item,player));
             CREATE TABLE IF NOT EXISTS dice_settings_v3 (owner TEXT PRIMARY KEY, state TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS dice_receipts_v3 (
                 kind TEXT NOT NULL, request TEXT NOT NULL, signature TEXT NOT NULL, result TEXT NOT NULL,
@@ -72,14 +82,16 @@ class Store:
         part = state.get('part')
         scope = state.get('scope', 'avatar' if part else 'all')
         assert mode in ('good', 'bad', 'force', 'shift', 'face', *EXTRA_MODES)
-        assert scope in ('roll', 'avatar', 'all')
-        assert part is None or isinstance(part, str) and part in PART_DICE and mode != 'face'
+        custom = is_custom_scope(scope)
+        assert scope in ('roll', 'avatar', 'all') or custom
+        assert part is None or isinstance(part, str) and (bool(CUSTOM_FIELD.fullmatch(part)) if custom else part in PART_DICE and mode != 'face')
         assert scope != 'roll' or part is None
         assert scope != 'avatar' or part is not None or mode in PASSIVE_MODES
+        assert not custom or part is not None or mode in PASSIVE_MODES
         assert target is None or isinstance(target, str) and target.isdecimal() and 0 < int(target) < 2**64
         if mode in ('force', 'shift'):
             assert type(value) is int and abs(value) <= MAX_VALUE
-            if part is not None and mode == 'force':
+            if part is not None and mode == 'force' and not custom:
                 assert PART_LIMITS[part][0] <= value <= PART_LIMITS[part][1]
         elif mode in EXTRA_MODES:
             assert type(value) is int and 1 <= value <= MAX_EXTRA_DICE

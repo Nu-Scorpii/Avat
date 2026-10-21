@@ -18,6 +18,12 @@ PASSIVE_MODES = ('good', 'bad', *EXTRA_MODES)
 TARGET = re.compile(r'(?:<@!?(\d+)>|(\d+))\Z')
 NUMBER = re.compile(r'[+-]?\d+\Z')
 COMMAND = re.compile(r'!rigger(?:\s|$)', re.IGNORECASE)
+CUSTOM_SCOPE = re.compile(r'custom:[1-9]\d{0,18}\Z')
+CUSTOM_FIELD = re.compile(r'field_[a-f0-9]{12}\Z')
+
+
+def is_custom_scope(scope):
+    return isinstance(scope, str) and CUSTOM_SCOPE.fullmatch(scope) is not None
 
 
 def empty_setting():
@@ -51,13 +57,17 @@ def panel_setting(mode, value=None, target=None, *, scope='roll', part=None, use
     require(mode in ('off', 'force', 'shift', 'good', 'bad', 'face', *EXTRA_MODES), 'Choose a control mode.')
     if mode == 'off':
         return empty_setting()
-    require(scope in ('roll', 'avatar'), 'Choose /roll or an Avatar roll.')
-    require(part is None or part in PART_DICE, 'Choose an Avatar roll.')
+    custom = is_custom_scope(scope)
+    require(scope in ('roll', 'avatar') or custom, 'Choose /roll, an Avatar roll, or a custom character command.')
+    require(part is None or isinstance(part, str) and (bool(CUSTOM_FIELD.fullmatch(part)) if custom else part in PART_DICE),
+            'Choose a roll from the panel.')
     require(scope != 'roll' or part is None, 'Avatar parts only work on /avatar.')
     require(scope != 'avatar' or part is not None or mode in PASSIVE_MODES,
             'Whole-character controls support luck or extra dice. Choose a specific part to force or shift it.')
     require(part != 'stats' or mode in PASSIVE_MODES,
             'Choose Stat 1–6 to force or shift an individual die. Six stats supports luck or extra dice.')
+    require(not custom or part is not None or mode in PASSIVE_MODES,
+            'Whole custom characters support luck or extra dice. Choose a specific roll for an exact change.')
     target = None if target is None else player_id(target)
     if mode in ('force', 'shift'):
         require(isinstance(value, (str, int)) and not isinstance(value, bool)
@@ -65,7 +75,7 @@ def panel_setting(mode, value=None, target=None, *, scope='roll', part=None, use
                 'Enter a whole number using Enter value.')
         value = int(str(value).strip())
         require(abs(value) <= MAX_VALUE, 'Use a value within ±200 billion.')
-        if part is not None and mode == 'force':
+        if part is not None and mode == 'force' and not custom:
             low, high = PART_LIMITS[part]
             require(low <= value <= high, f'For {part}, choose a value from {low} to {high}.')
     elif mode in EXTRA_MODES:
@@ -76,7 +86,7 @@ def panel_setting(mode, value=None, target=None, *, scope='roll', part=None, use
         require(1 <= value <= MAX_EXTRA_DICE,
                 f'Choose 1–{MAX_EXTRA_DICE} extra dice per result. Use Remove selected to turn it off.')
     elif mode == 'face':
-        require(scope == 'roll', 'Text faces only work with /roll custom dice.')
+        require(scope == 'roll' or custom and part is not None, 'Text faces need /roll or a specific custom text roll.')
         require(isinstance(value, str) and 1 <= len(value) <= 40 and not any(ord(c) < 32 for c in value),
                 'Enter the exact text face, using 1–40 characters.')
     else:
@@ -156,7 +166,8 @@ def describe(setting):
              'bad': f'Bad luck: {value or 100}% until removed',
              'extra_high': f'Extra dice: {value} per result; keep highest',
              'extra_low': f'Extra dice: {value} per result; keep lowest'}[mode]
-    scope = (f"\nRoll: /avatar {setting['part']} only." if setting.get('part') else
+    scope = (f"\nRoll: {setting['scope']} · {setting.get('part') or 'whole character'}." if is_custom_scope(setting.get('scope')) else
+             f"\nRoll: /avatar {setting['part']} only." if setting.get('part') else
              '\nRoll: all /avatar parts.' if setting.get('scope') == 'avatar' else
              '\nRoll: /roll only.' if setting.get('scope') == 'roll' else '\nRoll: /roll and /avatar (legacy setting).')
     return label + scope + '\nTarget: ' + (f"user {setting['target']} in every server." if setting['target'] else 'anyone in any server.')

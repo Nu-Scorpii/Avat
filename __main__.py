@@ -48,13 +48,14 @@ async def validate():
         return size + sum(check(child, depth + 1) for child in node.get('options', []))
     for payload in payloads:
         assert check(payload) <= 8000, f"/{payload['name']} exceeds Discord's command size limit."
-    assert [payload['name'] for payload in payloads] == ['roll', 'avatar', 'wallet', 'wallet-add', 'wallet-remove', 'wallet-transfer', 'wallet-manage']
+    assert [payload['name'] for payload in payloads] == ['roll', 'avatar', 'wallet', 'wallet-add', 'wallet-remove', 'wallet-transfer', 'wallet-manage', 'builder', 'custom']
     assert [option['name'] for option in payloads[0]['options']] == ['dice']
     assert payloads[1].get('options', []) == []
     assert payloads[2]['default_member_permissions'] is None
     assert [o['name'] for o in payloads[2].get('options', [])] == ['wallet']
     assert [o['name'] for o in payloads[5]['options']] == ['sender', 'receiver', 'amount', 'wallet', 'reason']
-    print('Validated 7 slash commands: /roll, /avatar, /wallet, /wallet-add, /wallet-remove, /wallet-transfer, /wallet-manage. No network login performed.')
+    assert [o['name'] for o in payloads[8].get('options', [])] == ['command']
+    print('Validated 9 global slash commands: /roll, /avatar, /wallet, /wallet-add, /wallet-remove, /wallet-transfer, /wallet-manage, /builder, /custom. Server commands are restored separately. No network login performed.')
     await bot.close()
 
 

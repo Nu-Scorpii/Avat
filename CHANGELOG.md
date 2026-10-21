@@ -1,3 +1,20 @@
+# Version 4.1.0
+
+- Added Add outcome → Named probabilities: custom type names and named outcomes with exact percentages totaling 100%, including up to four decimal places. No dice expression or number ranges are required.
+- Show only the chosen name in player messages and saved public replay results. Keep internal selection numbers out of that payload. Mix probability types with any existing dice groups and conditions, or publish a probability-only command.
+- Retained the relative-weight/numeric-draw mode alongside the new names-only mode. Existing templates, receipts, shops, FAQs, wallets, and Avatar behavior are preserved.
+- Applied every numeric Rigger mode through the shared selection engine, with named Force presets, readable named status, stacking, durations, and final controlled outcomes driving conditional rolls.
+- Verified 715 automated tests, including 29 new exact-probability, output-privacy, editor, condition, Rigger, persistence, and replay checks. Source and Railway bundle validate all nine global commands.
+
+# Version 4.0.0
+
+- Added /builder: private interactive draft editing, named dice groups, weighted outcome tables, conditional rolls, entry reordering, custom titles/introductions/colours, preview, publishing, unpublishing, and reversible archiving.
+- Added server-specific named slash commands and /custom as a player catalogue/dispatcher. Restore published commands after reconnects and redeploys without shadowing built-in commands.
+- Added FAQ dropdowns and wallet-backed shops with item browsing, quantity review, confirmation, durable duplicate protection, atomic balance/ledger/inventory updates, and My items.
+- Require the server owner, Administrator, or Manage Server for character editing; allow actual server moderators to edit FAQs and shops. Recheck viewer/server/permissions and reject stale forms and purchase quotes.
+- Added Custom rolls to creator-only !rigger: whole-template and named-roll controls, weighted outcome presets, all applicable modes, independent stacking, player targets, active status, and durations. Keep Avatar, its six stat slots and Bending Strength, ordinary rolls, and wallet commands intact.
+- Verified 686 automated tests, including 68 new builder, odds, conditional-roll, Rigger, shop, permission, persistence, concurrency, and real Discord UI checks. Source and bundle validate nine global commands, plus published per-server commands at runtime.
+
 # Version 3.9.0
 
 - Added a separate Bending Strength 1d20 to every Avatar bender, including all three Nomad elements. Non-benders neither roll nor display it; IQ and the original six stats keep their own dice.

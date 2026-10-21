@@ -1,4 +1,4 @@
-# Private Rigger panel · 3.9.0
+# Private Rigger panel · 4.1.0
 
 **DM the bot `!rigger`.** Only the account configured as `BOT_OWNER_ID` can open and use it. `!Rigger` also works. No extra words or server IDs are needed.
 
@@ -13,6 +13,28 @@ For currency, everyone uses **`/wallet` in the server** to check their own balan
 5. Press **Duration**. Enter a number such as `3`, or `permanent`, then **Apply**.
 
 Draft edits do not affect rolls until Apply. Targets work across all servers, including players who do not own the bot. To copy an ID: Discord Settings → Advanced → Developer Mode, then right-click the player → Copy User ID. The first draft targets you; reopening resumes the most recently added rig, including its remaining duration, as a draft.
+
+## Server-created character commands
+
+1. Publish the template in `/builder` first.
+2. DM `!rigger` and choose **Custom rolls**. Select the template; the server name appears in its menu description. You never have to type a server ID.
+3. Choose **Whole character** for percentage luck or extra dice, or a named roll for individual controls.
+4. Choose the player, change, value/preset, and Duration, then **Apply**.
+5. **Active rigs** shows the command name, named roll, target, and remaining uses. Edit or remove it there. **Standard rolls** returns to `/roll` and `/avatar`.
+
+Numeric groups support Force, Add/subtract, Good/bad luck 1–100%, and extra dice highest/lowest. Force sets the group's **final total**, including modifiers. To control six stats separately, create six named `1d20` entries; a single `6d20` entry uses one total-force target, while luck/extra dice works independently on each die. Avatar still has its existing six individual stat controls.
+
+Named probabilities and weighted tables offer named Force presets, so you can choose **Royal family** directly. The editor and Active rigs show **Force Royal family**, not just an internal number. Named probability results display only the selected name to players; relative-weight tables also display a numeric draw.
+
+Both types use exact integer selection internally so every existing numeric Rigger mode can apply. A named Force preset selects the first value in that outcome's range. Luck/extra-high favour later outcomes; bad luck/extra-low favour earlier ones. These modes use outcome order, not a judgment about which outcome is desirable. Arrange entries accordingly or use a named Force preset. Extra selections retain the configured probabilities, and discarded selections stay private. Good/bad luck percentages still mean strength, not an activation chance or a direct replacement probability.
+
+Text dice support Text face and extra dice; numeric luck is unavailable for a specific text-only entry. A whole-character luck rig skips text dice. Conditions read final controlled values, so forcing an outcome can trigger its extra roll.
+
+Each affected rig spends at most one use per complete custom character. Finite rigs for skipped or removed steps spend one character use, matching Avatar's conditional-roll rule; permanent rigs stay active. Stacking order is extra dice → luck → shift → force. A named-roll rig overrides whole-character controls of the same kind.
+
+Custom rigs belong to the selected template and player. A same-named command in another server is a different template. Built-in `/roll` and `/avatar` rigs are separate, and FAQ/shop actions never consume rigs. Renaming a roll keeps its identity and attached rigs; removing it and adding a new roll creates a new identity. Editing probabilities or relative weights may change an existing force's meaning: review and reapply its named preset after publishing such a change. An unpublished or removed template remains removable from Active rigs; its force may show the internal number when its name cannot be resolved.
+
+Server ownership and moderator permissions do not grant access to this panel. They only control the server workshop. See BUILDER_GUIDE.md for building templates, shops, and FAQs.
 
 ## Duration: uses or permanent
 

@@ -3,8 +3,9 @@
 import logging
 import secrets
 import discord
-from .controls import EXTRA_MODES, MAX_EXTRA_DICE, PASSIVE_MODES, category, panel_setting, player_id, rig_uses
-from .display import chunks, safe
+from .controls import EXTRA_MODES, MAX_EXTRA_DICE, PASSIVE_MODES, category, panel_setting, player_id, rig_uses, is_custom_scope
+from .custom import OUTCOME_TYPES, outcome_at, step_plan
+from .display import chunks, safe, short
 from .errors import RollError
 
 log = logging.getLogger(__name__)
@@ -84,21 +85,37 @@ HELP = ('1. Choose the roll you want to change.\n'
         'Choose Bending Strength to control it, or Whole character to include it with other parts. '
         'Non-benders skip that die; a strength rig cannot make someone a bender. '
         'Finite strength rigs follow the same skipped-part duration rule.\n\n'
+        'Custom rolls opens the server template picker. Choose a named command, then Whole character '
+        'or a named roll. No server ID is needed. Custom rigs only affect that template in its own server; '
+        'they never alter /avatar or /roll. Named probabilities and weighted tables have named Force presets; highest/lowest '
+        'and luck follow the outcome order, not which name sounds best. Conditions use final controlled values. '
+        'Named probability results show only the chosen name; their internal selection and rig details stay private. '
+        'A template spends one use per affected rig. Finite skipped-part rigs follow the Avatar rule.\n\n'
         'To copy a player ID: Discord Settings → Advanced → Developer Mode, then '
         'right-click their profile → Copy User ID. '
         'After a restart or an expired panel, DM !rigger again.')
 PAGE_SIZE = 8
 
 
-def roll_label(rule):
+def roll_label(rule, customs=None):
+    if is_custom_scope(rule['scope']):
+        return customs.rig_label(rule['scope'], rule['part']) if customs else f"{rule['scope']} · {rule['part'] or 'Whole character'}"
     key = rule['part'] or rule['scope']
     return ROLLS.get(key, ('Legacy /roll + /avatar', ''))[0]
 
 
-def change_value(rule):
+def change_value(rule, customs=None):
     mode, value = rule['mode'], rule['value']
     if value is None:
         return 'Enter a value'
+    if customs is not None and mode == 'force' and is_custom_scope(rule['scope']):
+        try:
+            template = customs.rig_template(rule['scope'])
+            entry = next((e for e in template['published']['entries'] if e['id'] == rule['part']), None)
+            name = outcome_at(entry['outcomes'], value) if entry and entry['type'] in OUTCOME_TYPES else None
+            if name is not None: return f'Force {name}'
+        except RollError:
+            pass  # Removed/unpublished templates still have removable active rigs.
     if mode in ('good', 'bad'):
         return f"{'Good' if mode == 'good' else 'Bad'} luck {value}%"
     if mode in EXTRA_MODES:
@@ -108,8 +125,8 @@ def change_value(rule):
     return f"{'Force' if mode == 'force' else 'Text face'} {value}"
 
 
-def change_label(rule):
-    return f"{change_value(rule)} · {duration_label(rule.get('remaining', rig_uses(rule['mode'])))}"
+def change_label(rule, customs=None):
+    return f"{change_value(rule, customs)} · {duration_label(rule.get('remaining', rig_uses(rule['mode'])))}"
 
 
 def duration_label(remaining):
@@ -133,17 +150,28 @@ class PanelSelect(discord.ui.Select):
         if not await self.panel.authorize(interaction):
             return
         value = self.values[0]
+        if self.kind == 'custom':
+            template = self.panel.bot.customs.rig_template(value)
+            self.panel.draft.update(scope=value, part=None, mode='good', value=50)
+            self.panel.roll, self.panel.page = value, 'edit'
+            self.panel.note = f"/{template['name']} selected. Choose a roll, then Apply."
+            await self.panel.update(interaction)
+            return
         if self.kind == 'roll':
-            if value not in ROLLS:
+            if value not in self.panel.roll_options():
                 await private_reply(interaction, 'Choose a roll from this panel.')
                 return
             if value != self.panel.roll:
                 self.panel.draft['value'] = None
             self.panel.roll = value
-            self.panel.draft['scope'] = 'roll' if value == 'roll' else 'avatar'
-            self.panel.draft['part'] = None if value in ('roll', 'avatar') else value
+            if is_custom_scope(self.panel.draft['scope']):
+                self.panel.draft['part'] = None if value == self.panel.draft['scope'] else value
+            else:
+                self.panel.draft['scope'] = 'roll' if value == 'roll' else 'avatar'
+                self.panel.draft['part'] = None if value in ('roll', 'avatar') else value
             if self.panel.draft['mode'] not in self.panel.allowed_modes():
-                self.panel.draft.update(mode='good', value=50)
+                mode = 'good' if 'good' in self.panel.allowed_modes() else self.panel.allowed_modes()[0]
+                self.panel.draft.update(mode=mode, value=50 if mode == 'good' else None)
             elif self.panel.draft['mode'] in ('good', 'bad') and self.panel.draft['value'] is None:
                 self.panel.draft['value'] = 50
             elif self.panel.draft['mode'] in EXTRA_MODES and self.panel.draft['value'] is None:
@@ -250,6 +278,7 @@ class RiggerPanel(discord.ui.View):
         self.nonce = secrets.token_hex(6)
         active = bot.engine.control_status(bot.engine.owner_id, is_dm=True)
         self.page, self.active_page, self.selected_id, self.player_only = 'edit', 0, None, False
+        self.custom_page = 0
         if not active['rules']:
             self.draft = {'mode': 'force', 'value': None, 'target': str(bot.engine.owner_id),
                           'scope': 'roll', 'part': None, 'uses': 'default'}
@@ -289,17 +318,33 @@ class RiggerPanel(discord.ui.View):
         if self.page == 'active':
             self.build_active_items()
             return
+        if self.page == 'edit' and is_custom_scope(self.draft['scope']):
+            try:
+                options = self.roll_options()
+                if self.roll not in options:
+                    self.roll = self.draft['scope']
+                    self.draft.update(part=None, mode='good', value=50)
+                    self.note = 'That roll was removed. Choose a current roll before Apply.'
+            except RollError:
+                self.page = 'customs'
+                self.note = 'That template is unpublished. Choose a published custom command.'
+        if self.page == 'customs':
+            self.build_custom_items()
+            return
         self.add_item(PanelSelect(self, 'roll', [discord.SelectOption(label=label, value=key,
-            description=hint, default=key == self.roll) for key, (label, hint) in ROLLS.items()],
+            description=hint, default=key == self.roll) for key, (label, hint) in self.roll_options().items()],
             row=0, placeholder='Choose the roll'))
         self.add_item(PanelSelect(self, 'mode', [discord.SelectOption(label=label, value=key,
             description=hint, default=key == self.draft['mode']) for key, (label, hint) in MODES.items()
             if key in self.allowed_modes()],
             row=1, placeholder='Choose what to change'))
         quick = self.quick_choices()
+        entry = self.custom_entry()
+        named = entry is not None and entry['type'] in OUTCOME_TYPES and self.draft['mode'] == 'force'
         options = [discord.SelectOption(label=label, value=str(value), description=
                    f'Luck strength {value}%.' if self.draft['mode'] in ('good', 'bad') else
                    f'{value + 1} candidates per die; show one.' if self.draft['mode'] in EXTRA_MODES else
+                   'Select this named outcome.' if named else
                    f'Forces the die to {value}.',
                    default=value == self.draft['value']) for label, value in quick]
         if quick:
@@ -314,10 +359,66 @@ class RiggerPanel(discord.ui.View):
             ('Apply', 'apply', self.apply, 4, discord.ButtonStyle.success),
             ('Active rigs', 'active_page', self.show_active, 4, discord.ButtonStyle.primary),
             ('Help', 'help', self.help, 4, discord.ButtonStyle.secondary),
+            ('Custom rolls', 'customs', self.show_customs, 4, discord.ButtonStyle.secondary),
         ]:
             self.add_button(label, key, handler, row, style)
+        if is_custom_scope(self.draft['scope']):
+            self.add_button('Standard rolls', 'standard', self.standard_rolls, 4)
+
+    def roll_options(self):
+        if not is_custom_scope(self.draft['scope']): return ROLLS
+        template = self.bot.customs.rig_template(self.draft['scope'])
+        return {self.draft['scope']: (f"/{template['name']} · Whole character", 'Luck or extra dice on all applicable rolls.'),
+                **{e['id']: (f"/{template['name']} · {e['name']}",
+                             short(e.get('dice') or 'Weighted outcomes; Force has named presets.'))
+                   for e in template['published']['entries']}}
+
+    def custom_entry(self):
+        if not is_custom_scope(self.draft['scope']) or self.draft['part'] is None: return None
+        template = self.bot.customs.rig_template(self.draft['scope'])
+        return next((e for e in template['published']['entries'] if e['id'] == self.draft['part']), None)
+
+    def build_custom_items(self):
+        records = self.bot.customs.list(published=True, kind='roll')
+        self.custom_page = min(self.custom_page, max(0, (len(records) - 1) // 25))
+        self.custom_count = len(records)
+        options = []
+        for record in records[self.custom_page * 25:self.custom_page * 25 + 25]:
+            guild = self.bot.get_guild(int(record['guild']))
+            server = guild.name if guild else f"Server {record['guild']}"
+            options.append(discord.SelectOption(label=short(f"/{record['name']} · {record['published']['title']}"),
+                           value=f"custom:{record['id']}", description=short(server)))
+        self.add_item(PanelSelect(self, 'custom', options or [discord.SelectOption(label='No published character commands', value='none')],
+                                 row=0, placeholder='Choose a custom character command', disabled=not options))
+        self.add_button('Previous', 'custom_prev', self.custom_previous, 1, disabled=self.custom_page == 0)
+        self.add_button('Next', 'custom_next', self.custom_next, 1, disabled=(self.custom_page + 1) * 25 >= len(records))
+        self.add_button('Standard rolls', 'standard', self.standard_rolls, 1)
+        self.add_button('Active rigs', 'active_page', self.show_active, 1)
+
+    async def show_customs(self, interaction):
+        self.page, self.custom_page = 'customs', 0
+        self.note = 'Choose a server’s published character command. Player targeting stays the same.'
+        await self.update(interaction)
+
+    async def custom_previous(self, interaction):
+        self.custom_page = max(0, self.custom_page - 1)
+        await self.update(interaction)
+
+    async def custom_next(self, interaction):
+        self.custom_page += 1
+        await self.update(interaction)
+
+    async def standard_rolls(self, interaction):
+        self.draft.update(scope='roll', part=None, mode='force', value=None)
+        self.roll, self.page = 'roll', 'edit'
+        self.note = 'Standard rolls selected. Choose /roll or an Avatar part.'
+        await self.update(interaction)
 
     def allowed_modes(self):
+        if is_custom_scope(self.draft['scope']):
+            if self.draft['part'] is None: return PASSIVE_MODES
+            entry = self.custom_entry()
+            return tuple(m for m in MODES if m != 'face') if entry and step_plan(entry).numeric else ('face', *EXTRA_MODES)
         return PASSIVE_MODES if self.roll in ('avatar', 'stats') else tuple(
             mode for mode in MODES if mode != 'face' or self.roll == 'roll')
 
@@ -326,6 +427,15 @@ class RiggerPanel(discord.ui.View):
             return [(f'{percent}% strength', percent) for percent in (1, 25, 50, 75, 100)]
         if self.draft['mode'] in EXTRA_MODES:
             return [(f'+{extra} extra · {extra + 1} total', extra) for extra in (1, 2, 4, 9, 19)]
+        if is_custom_scope(self.draft['scope']):
+            entry = self.custom_entry()
+            if entry and entry['type'] in OUTCOME_TYPES and self.draft['mode'] == 'force':
+                options, first = [], 1
+                for row in entry['outcomes']:
+                    options.append((row['name'], first))
+                    first += row['weight']
+                return options
+            return []
         return PRESETS.get(self.roll, []) if self.draft['mode'] == 'force' else []
 
     def add_button(self, label, key, handler, row, style=discord.ButtonStyle.secondary, *, disabled=False):
@@ -346,7 +456,7 @@ class RiggerPanel(discord.ui.View):
     def build_active_items(self):
         active = self.bot.engine.control_status(self.bot.engine.owner_id, is_dm=True)
         rules, shown = self.active_slice(active)
-        options = [discord.SelectOption(label=f"#{r['id']} · {roll_label(r)} · {change_label(r)}"[:100],
+        options = [discord.SelectOption(label=short(f"#{r['id']} · {roll_label(r, self.bot.customs)} · {change_label(r, self.bot.customs)}"),
                    value=str(r['id']), description=f"Player {r['target'] or 'anyone (legacy)'}",
                    default=r['id'] == self.selected_id) for r in shown]
         self.add_item(PanelSelect(self, 'active', options or [discord.SelectOption(label='No active rigs', value='none')],
@@ -367,25 +477,30 @@ class RiggerPanel(discord.ui.View):
 
     def embed(self):
         active = self.bot.engine.control_status(self.bot.engine.owner_id, is_dm=True)
+        if self.page == 'customs':
+            embed = discord.Embed(title='🔒 Custom character rigs', description=self.note, colour=0x8B5CF6)
+            embed.add_field(name='Named commands', value='Choose a template, then its whole character or an individual named roll.', inline=False)
+            embed.set_footer(text=f'{self.custom_count} templates • Page {self.custom_page + 1} • Creator only')
+            return embed
         if self.page == 'active':
             rules, shown = self.active_slice(active)
             embed = discord.Embed(title=f"🔒 Active rigs · {len(active['rules'])}", description=self.note, colour=0x5865F2)
             embed.add_field(name='Chosen player', value=f"`{self.draft['target']}` · Clear player uses this ID", inline=False)
             for rule in shown:
-                embed.add_field(name=f"#{rule['id']} · {roll_label(rule)}", value=safe(
-                    f"{change_label(rule)}\nPlayer {rule['target'] or 'anyone (legacy)'}"), inline=False)
+                embed.add_field(name=f"#{rule['id']} · {roll_label(rule, self.bot.customs)}", value=safe(
+                    f"{change_label(rule, self.bot.customs)}\nPlayer {rule['target'] or 'anyone (legacy)'}"), inline=False)
             if not shown:
                 embed.add_field(name='Status', value='No active rigs in this view.', inline=False)
             if active['last']:
-                embed.add_field(name='Last affected roll', value=safe(active['last'])[:1024], inline=False)
+                embed.add_field(name='Last affected roll', value=next(chunks(safe(active['last']), 1000)), inline=False)
             embed.set_footer(text=f"Page {self.active_page + 1}/{max(1, (len(rules) + PAGE_SIZE - 1) // PAGE_SIZE)} • "
                              f"{'Chosen player' if self.player_only else 'All players'} • Private to you")
             return embed
         embed = discord.Embed(title='🔒 Rigger', description=self.note, colour=0x5865F2)
         target = self.draft['target']
         embed.add_field(name='Player', value=f"{'You' if target == str(self.bot.engine.owner_id) else 'Player'} · `{target}`", inline=False)
-        embed.add_field(name='Roll', value=ROLLS[self.roll][0], inline=True)
-        embed.add_field(name='Change', value=safe(change_value(self.draft)), inline=True)
+        embed.add_field(name='Roll', value=self.roll_options()[self.roll][0], inline=True)
+        embed.add_field(name='Change', value=safe(change_value(self.draft, self.bot.customs)), inline=True)
         embed.add_field(name='Duration', value=duration_label(rig_uses(self.draft['mode'], self.draft.get('uses', 'default'))),
                         inline=True)
         player_rules = [r for r in active['rules'] if r['target'] == target]

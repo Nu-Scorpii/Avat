@@ -13,6 +13,14 @@ def length(text):
     return len(text.encode('utf-16-le')) // 2
 
 
+def short(value, budget=100):
+    """Bound component text in Discord's UTF-16 units without escaping labels."""
+    value = str(value)
+    while length(value) > budget:
+        value = value[:-1]
+    return value
+
+
 def chunks(text, budget=LIMIT):
     while length(text) > budget:
         used, cut = 0, 0

@@ -1,16 +1,20 @@
 """Custom dice and Avatar creation, with private creator controls."""
 
 import logging
+import asyncio
 import discord
 from discord import app_commands
 from . import __version__
 from .dice import prepare
 from .controls import COMMAND
-from .display import avatar_messages, private_messages, roll_messages, safe
+from .display import avatar_messages, private_messages, roll_messages, safe, short
 from .errors import RollError
 from .rigger_ui import RiggerPanel
 from .wallets import Wallets, MAX_MONEY, moderator
 from .wallet_ui import WalletPanel, member, shown, TEAL
+from .custom import allowed
+from .custom_ui import Catalogue, ContentPanel, character_embeds
+from .builder_ui import BuilderPanel
 
 log = logging.getLogger(__name__)
 NO_MENTIONS = discord.AllowedMentions.none()
@@ -25,6 +29,8 @@ class DiceBot(discord.Client):
         super().__init__(intents=intents, allowed_mentions=NO_MENTIONS)
         self.engine = engine
         self.wallets = Wallets(engine.store, engine.owner_id)
+        self.customs = engine.customs
+        self.custom_sync_locks = {}
         self.tree = app_commands.CommandTree(self)
         self.cleaned_guilds = set()
         self.rigger_panel = None
@@ -89,21 +95,56 @@ class DiceBot(discord.Client):
         for command in (wallet, wallet_add, wallet_remove, wallet_transfer):
             command.autocomplete('wallet')(wallet_suggestions)
 
+        @self.tree.command(name='builder', description='Server staff: build character rolls, named probability outcomes, FAQs, and shops.')
+        @app_commands.guild_only()
+        async def builder(interaction: discord.Interaction):
+            await self.run_builder(interaction)
+
+        @self.tree.command(name='custom', description='Explore or run this server’s custom character creators, FAQs, and shops.')
+        @app_commands.guild_only()
+        @app_commands.describe(command='Choose a published command, or leave blank to browse the collection.')
+        async def custom(interaction: discord.Interaction, command: str | None = None):
+            await self.run_custom(interaction, selection=command)
+
+        @custom.autocomplete('command')
+        async def suggestions(interaction: discord.Interaction, current: str):
+            if not interaction.guild_id: return []
+            return [app_commands.Choice(name=short('/' + c['name'] + ' · ' + c['published']['title']), value=f"cmd:{c['id']}")
+                    for c in self.customs.list(interaction.guild_id, published=True)
+                    if current.casefold() in (c['name'] + ' ' + c['published']['title']).casefold()][:25]
+
     async def setup_hook(self):
         synced = await self.tree.sync()
-        log.info('Registered %s slash commands globally (v%s); /roll, /avatar, /wallet and wallet management ready.', len(synced), __version__)
+        log.info('Registered %s slash commands globally (v%s); Avatar, Rigger, wallets, and server builder ready.', len(synced), __version__)
+
+    def custom_command(self, record):
+        async def callback(interaction: discord.Interaction):
+            await self.run_custom(interaction, identity=record['id'])
+        return app_commands.Command(name=record['name'], description=('Open ' + record['published']['title'])[:100], callback=callback)
+
+    async def sync_custom_guild(self, guild, *, force=False):
+        lock = self.custom_sync_locks.setdefault(guild.id, asyncio.Lock())
+        async with lock:
+            if not force and guild.id in self.cleaned_guilds: return
+            # Replace obsolete guild overrides with the persisted server command set.
+            # Never copy global commands here or allow built-in names to be shadowed.
+            self.tree.clear_commands(guild=guild)
+            for record in self.customs.list(guild.id, published=True):
+                self.tree.add_command(self.custom_command(record), guild=guild)
+            try:
+                await self.tree.sync(guild=guild)
+                self.cleaned_guilds.add(guild.id)
+            except discord.HTTPException:
+                self.cleaned_guilds.discard(guild.id)
+                raise
 
     async def clean_guild_commands(self, guild):
         if guild.id in self.cleaned_guilds:
             return
         try:
-            # Old releases could leave guild-specific game commands overriding
-            # the global tree. Remove them; this bot uses global commands.
-            self.tree.clear_commands(guild=guild)
-            await self.tree.sync(guild=guild)
-            self.cleaned_guilds.add(guild.id)
+            await self.sync_custom_guild(guild)
         except discord.HTTPException as exc:
-            log.warning('Old guild commands could not be cleared: %s; will retry after reconnect.', type(exc).__name__)
+            log.warning('Server commands could not be synced: %s; will retry after reconnect.', type(exc).__name__)
 
     async def on_ready(self):
         for guild in self.guilds:
@@ -179,6 +220,50 @@ class DiceBot(discord.Client):
         outcome = self.engine.avatar(interaction.user.id, interaction.guild_id, request_id=interaction.id)
         parts = avatar_messages(outcome['character'], interaction.user.display_name)
         await self.deliver_roll(interaction, parts, outcome)
+
+    async def run_builder(self, interaction):
+        if not allowed(interaction, 'faq'):
+            await self.error(interaction, 'Use /builder as a server owner or moderator. Everyone can browse published commands with /custom.')
+            return
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        panel = BuilderPanel(self, interaction)
+        panel.message = await interaction.edit_original_response(embed=panel.embed(), view=panel, allowed_mentions=NO_MENTIONS)
+
+    async def run_custom(self, interaction, *, selection=None, identity=None):
+        guild = getattr(interaction, 'guild', None)
+        if guild is None or interaction.guild_id != guild.id:
+            await self.error(interaction, 'Use custom commands in their server.')
+            return
+        try:
+            if selection is not None:
+                if not isinstance(selection, str) or not 1 <= len(selection) <= 100:
+                    raise RollError('Choose a command from this server’s suggestions.')
+                matches = self.customs.list(guild.id, published=True)
+                record = next((c for c in matches if selection == f"cmd:{c['id']}" or
+                               c['name'] == selection.strip().removeprefix('/').lower()), None)
+                if record is None: raise RollError('That command is not published here. Use /custom to browse.')
+                identity = record['id']
+            if identity is None:
+                await interaction.response.defer(thinking=True, ephemeral=True)
+                panel = Catalogue(self, interaction)
+                panel.message = await interaction.edit_original_response(embed=panel.embed(), view=panel, allowed_mentions=NO_MENTIONS)
+                return
+            record = self.customs.get(guild.id, identity, published=True)
+            if record['kind'] == 'roll':
+                await interaction.response.defer(thinking=True)
+                interaction.extras['roll_deferred'] = True
+                outcome = self.engine.custom_roll(interaction.user.id, guild.id, identity, request_id=interaction.id)
+                embeds = character_embeds(outcome['character'], interaction.user.display_name)
+                await interaction.edit_original_response(embed=embeds[0], allowed_mentions=NO_MENTIONS)
+                interaction.extras.pop('roll_deferred', None)
+                for embed in embeds[1:]: await interaction.followup.send(embed=embed, allowed_mentions=NO_MENTIONS)
+                await self.finish_roll(outcome)
+            else:
+                await interaction.response.defer(thinking=True, ephemeral=True)
+                panel = ContentPanel(self, interaction, record)
+                panel.message = await interaction.edit_original_response(embed=panel.embed(), view=panel, allowed_mentions=NO_MENTIONS)
+        except RollError as exc:
+            await self.error(interaction, str(exc))
 
     async def run_wallet(self, interaction, *, wallet=None, manage=False):
         if not interaction.guild_id or interaction.guild is None or interaction.guild.id != interaction.guild_id:
@@ -262,6 +347,9 @@ class DiceBot(discord.Client):
         interaction.extras.pop('roll_deferred', None)
         for part in parts[1:]:
             await interaction.followup.send(part, allowed_mentions=NO_MENTIONS)
+        await self.finish_roll(outcome)
+
+    async def finish_roll(self, outcome):
         if outcome['notice'] and not outcome['replayed']:
             await self.notify_creator(outcome['notice'])
         if not outcome['replayed'] and self.rigger_panel is not None:

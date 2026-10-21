@@ -1,6 +1,20 @@
-# Simple Discord Dice Bot · 3.9.0
+# Simple Discord Dice Bot · 4.1.0
 
-Players use `/roll`, `/avatar`, and `/wallet`. Moderators use separate currency commands to add, remove, or transfer money. Creator roll controls work privately in DMs.
+Players use `/roll`, `/avatar`, `/wallet`, and their server's custom commands. Server staff use `/builder` to create character rolls, FAQs, and shops. Moderators use separate currency commands to add, remove, or transfer money. Creator roll controls work privately in DMs.
+
+## New: your server's command workshop
+
+Run **`/builder` → New command**. Choose **Character rolls**, **FAQ / guide**, or **Shop**. Give it a name such as `hero`, `rules`, or `market`; add entries, Preview, then Publish. Players can use its own slash command (`/hero`, `/rules`, `/market`) or browse **`/custom`**. These names are examples you create, not additional built-ins.
+
+Character templates support separate named groups such as **Origin · 1d5**, **Stats · 6d20**, and **Power · 1d20+2**, all in one invocation. Add odds tables with named outcomes and exact relative weights, plus optional conditions based on earlier results. Pick a display title, introduction, and accent colour. The six stat dice stay visible as six values.
+
+**Named probabilities** are available under **Add outcome**. Define a type such as Nation or Rarity and give each result an exact chance, for example `Common | 70%`, `Rare | 25%`, and `Legendary | 5%`. The chances must total 100%. Players see only the selected name—no numeric die, expression, or total. You can combine several probability types with normal dice groups in one command, or publish a command containing just one probability type. Conditions and all applicable Rigger controls work on these outcomes. **Relative weights** remains available for named results that also display a numeric draw.
+
+Server owners, Administrator, or Manage Server can create/edit character templates. Moderators can also create/edit FAQs and shops. Published commands are available to all server players, subject to Discord's own application-command permissions. Shops charge the buyer's chosen server currency wallet after a confirmation and save purchases in **My items**. They have unlimited stock. FAQs use a question dropdown.
+
+**Rigger:** DM `!rigger` → **Custom rolls** → choose the server's published template → whole character or named roll. All applicable modes, stacked controls, and counted/permanent durations work. The **Standard rolls** button returns to `/roll` and `/avatar`, including Bending Strength. Only the bot creator can use Rigger.
+
+Drafts, published commands, shop inventories, existing rigs, and wallet data survive redeploys. The built-in Avatar command is preserved. Read **[BUILDER_GUIDE.md](BUILDER_GUIDE.md)** for a complete walkthrough, sample odds and conditions, permissions, and limits.
 
 ## Players: `/roll`
 
@@ -117,7 +131,7 @@ Panels close after ten minutes of inactivity or a restart; use `/wallet` again. 
 
 Open the bot's DMs and send **`!rigger`**. Choose a player, roll, and change, enter a value or pick a preset, choose **Duration**, then press **Apply**. Enter a number such as `3`, or `permanent`. `!Rigger` works too. No command arguments or server IDs are needed. Appended old arguments open the panel without arming anything.
 
-Only the account configured as `BOT_OWNER_ID` can open the panel, use its buttons, or submit its forms. It never appears in slash menus. Server messages are ignored. Choose the exact Avatar part when modifying `/avatar`; choosing `/roll` affects custom rolls only. Presets include nations, tribes, family tiers, bender/non-bender, elements, and combat styles. Whole-character Avatar controls support good/bad luck and extra dice.
+Only the account configured as `BOT_OWNER_ID` can open the panel, use its buttons, or submit its forms. It never appears in slash menus. Server messages are ignored. Choose the exact Avatar part when modifying `/avatar`; choosing `/roll` affects only the ordinary `/roll` command. Use **Custom rolls** for server-built character templates. Presets include nations, tribes, family tiers, bender/non-bender, elements, and combat styles. Whole-character Avatar controls support good/bad luck and extra dice.
 
 The first draft targets **you**; reopening resumes the most recently added rig as a draft. **Choose player** accepts another player's user ID or mention and verifies their account. Targets follow players across every server. Other players cannot operate the controls but can receive rigs you set for them. Only **Apply** changes live settings.
 
@@ -171,11 +185,11 @@ For a new service, attach a persistent volume at **`/data`**. Set these variable
 | `BOT_OWNER_ID` | Your own Discord user ID |
 | `BOT_DB_PATH` | Optional: `/data/ua.sqlite3`; omit it to use the actual attached volume automatically |
 
-Railway supplies `RAILWAY_VOLUME_MOUNT_PATH`; do not set it manually. The database must be inside that mount. A local default is `data/ua.sqlite3`. No server ID is needed; a previous `DISCORD_GUILD_ID` is ignored. The bot replaces the global command list and clears old server-specific commands when it connects. Discord clients may need a refresh before their cached menus update.
+Railway supplies `RAILWAY_VOLUME_MOUNT_PATH`; do not set it manually. The database must be inside that mount. A local default is `data/ua.sqlite3`. No server ID is needed; a previous `DISCORD_GUILD_ID` is ignored. The bot registers nine global commands and restores each server's published custom commands when it connects, replacing obsolete guild overrides. Discord clients may need a refresh before their cached menus update.
 
 The bot preserves old campaign tables on the volume without loading them. Current rigs and the last 1,000 dice receipts use separate tables. All dice, rig consumption, and a receipt for one Avatar character commit together. Wallet balances, history, and durable currency receipts use their own tables. Redeploys preserve rigs and wallets. A repeated recent dice interaction returns the same result without consuming or rearming newer rigs; duplicate currency submissions are remembered independently of the dice cache.
 
-Install the Discord application **to your server** with `bot` and `applications.commands` scopes; adding it only to your account does not put the bot in the server. Permit View Channel, Send Messages, and Embed Links for the wallet cards, and let players use application commands. Leave the Interactions Endpoint URL empty. No privileged Gateway intents or Administrator permission are needed. Creator controls and notices require that your account can DM the bot. A startup log showing **0 server(s)** means the connected bot was not in any servers when it connected: check its bot ID against the bot in your server and use the correct server install.
+Install the Discord application **to your server** with `bot` and `applications.commands` scopes; adding it only to your account does not put the bot in the server. Permit View Channel, Send Messages, and Embed Links for the cards, and let players use application commands. Leave the Interactions Endpoint URL empty. No privileged Gateway intents or Administrator permission are needed. Creator controls and notices require that your account can DM the bot. A startup log showing **0 server(s)** means the connected bot was not in any servers when it connected: check its bot ID against the bot in your server and use the correct server install.
 
 ## Local editing and checks
 
@@ -196,7 +210,7 @@ For local play, copy `.env.example` to `.env`, fill in your token and creator ID
 - Bot online but `/roll`, `/avatar`, or `/wallet` missing: check its server installation, `applications.commands` scope, and channel permissions; refresh Discord's command menu.
 - Checking a new server: `/wallet` creates an empty Main wallet automatically. The creator can rename it or create more with `/wallet-manage`.
 - Adding or moving money: use `/wallet-add`, `/wallet-remove`, or `/wallet-transfer` with actual server moderation permissions. The player balance panel only shows your money and history. Choose a wallet if several exist.
-- Old commands still visible: refresh Discord. Runtime logs report whether old server commands could be cleared; a reconnect retries failed cleanup.
+- Old commands still visible: refresh Discord. Runtime logs report server-command sync failures; a reconnect retries them. Published custom commands are preserved.
 - Volume error: attach the volume to this service and place the database under its real mount, then redeploy. Retain the original database file when updating.
 - Private panel not opening: DM `!rigger` from the exact account identified by `BOT_OWNER_ID`; allow DMs from the bot. This variable must contain your user ID, not the application ID. There is no public `/rigger` command.
 - Old or expired buttons: DM `!rigger` again. Reopening does not arm, clear, or rearm a saved setting.
